@@ -1,5 +1,7 @@
+build/
 dist/
 mynt.egg-info/
+flycheck_*.py
 *.pyc
 *.sublime-project
 *.sublime-workspace
