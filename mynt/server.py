@@ -18,7 +18,7 @@ class RequestHandler(SimpleHTTPRequestHandler):
         SimpleHTTPRequestHandler.__init__(self, request, client_address, server)
 
     def do_GET(self):
-        self.path = self.path.replace(self.base_url, b'/')
+        self.path = self.path.replace(self.base_url, '/')
 
         SimpleHTTPRequestHandler.do_GET(self)
 
@@ -29,7 +29,7 @@ class Server(TCPServer):
     def __init__(self, server_address, base_url, RequestHandlerClass, bind_and_activate = True):
         TCPServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate)
 
-        self.base_url = base_url.encode('utf-8')
+        self.base_url = base_url
 
     def finish_request(self, request, client_address):
         self.RequestHandlerClass(request, client_address, self.base_url, self)

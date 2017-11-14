@@ -5,3 +5,4 @@ flycheck_*.py
 *.pyc
 *.sublime-project
 *.sublime-workspace
+.python-version

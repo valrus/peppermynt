@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 
 from calendar import timegm
+from collections import defaultdict
 from datetime import datetime
+from functools import partial
 from importlib import import_module
+from operator import eq
 from os import path as op
 import re
 
@@ -26,7 +29,7 @@ class Reader(object):
         self._writer = writer
 
         self._parsers = {}
-        self._extensions = {}
+        self._extensions = defaultdict(list)
         self._cache = {}
 
         self.src = src
@@ -34,7 +37,6 @@ class Reader(object):
         self.site = site
 
         self._find_parsers()
-
 
     def _find_parsers(self):
         for parser in iter_entry_points('mynt.parsers'):
@@ -48,15 +50,12 @@ class Reader(object):
                 continue
 
             for extension in Parser.accepts:
-                if extension in self._extensions:
-                    self._extensions[extension].append(name)
+                if 'parsers' in self.site and self.site['parsers'].get(extension.lstrip('.')) == name:
+                    self._extensions[extension].insert(0, name)
                 else:
-                    self._extensions[extension] = [name]
+                    self._extensions[extension].append(name)
 
             self._parsers[name] = Parser
-
-        for parsers in self._extensions.values():
-            parsers.sort(key = str.lower)
 
     def _get_date(self, mtime, date):
         if not date:
@@ -164,7 +163,6 @@ class Reader(object):
 
         return item
 
-
     def parse(self):
         posts = self._parse_container(Posts(self.src, self.site))
         containers = {}
@@ -187,6 +185,7 @@ class Reader(object):
 
         return (posts, containers, pages)
 
+
 class Writer(object):
     def __init__(self, src, dest, site):
         self.src = src
@@ -194,7 +193,6 @@ class Writer(object):
         self.site = site
 
         self._renderer = self._get_renderer()
-
 
     def _get_path(self, url):
         parts = [self.dest.path] + url.split('/')
@@ -241,7 +239,6 @@ class Writer(object):
 
     def _pygmentize(self, html):
         return re.sub(r'<pre><code[^>]+data-lang="([^>]+)"[^>]*>(.+?)</code></pre>', self._highlight, html, flags = re.S)
-
 
     def from_string(self, string, data = None):
         return self._renderer.from_string(string, data)

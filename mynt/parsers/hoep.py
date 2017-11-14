@@ -26,7 +26,6 @@ class _Renderer(h.Hoep):
             (r'^$', 'section')
         )
 
-
     def block_code(self, text, language):
         text = escape(text)
         language = ' data-lang="{0}"'.format(language) if language else ''
@@ -67,7 +66,6 @@ class _Renderer(h.Hoep):
         else:
             return '<h{0}>{1}</h{0}>'.format(level, text)
 
-
     def preprocess(self, markdown):
         self._toc_ids.clear()
 
@@ -76,7 +74,6 @@ class _Renderer(h.Hoep):
 
 class Parser(_Parser):
     accepts = ('.md', '.markdown')
-
 
     lookup = {
         'extensions': {
@@ -122,7 +119,6 @@ class Parser(_Parser):
             'smartypants': True
         }
     }
-
 
     def parse(self, markdown):
         return self._md.render(markdown)

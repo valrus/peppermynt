@@ -283,7 +283,7 @@ class _Writer(Writer):
 
 
 class Parser(_Parser):
-    accepts = (u'.rst',)
+    accepts = ('.rst',)
 
     defaults = {
         'doctitle_xform': 0,

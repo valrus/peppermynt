@@ -78,7 +78,8 @@ setup(
     entry_points = {
         'mynt.parsers' : [
             'docutils = mynt.parsers.docutils:Parser [reST]',
-            'hoep = mynt.parsers.hoep:Parser'
+            'hoep = mynt.parsers.hoep:Parser',
+            'tufte = mynt.parsers.tufte:Parser [tufte]'
         ],
         'mynt.renderers': [
             'jinja = mynt.renderers.jinja:Renderer'
@@ -93,7 +94,8 @@ setup(
         'watchdog'
     ],
     extras_require = {
-        'reST': 'docutils>=0.10'
+        'reST': 'docutils>=0.10',
+        'tufte': 'pypandoc'
     },
     classifiers = [
         'Development Status :: 4 - Beta',
