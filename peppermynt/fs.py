@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import unicode_literals
 
 from codecs import open
 from datetime import datetime
@@ -12,8 +11,8 @@ import traceback
 
 from watchdog.events import FileSystemEventHandler
 
-from mynt.exceptions import FileSystemException
-from mynt.utils import abspath, get_logger, normpath, Timer
+from peppermynt.exceptions import FileSystemException
+from peppermynt.utils import abspath, get_logger, normpath, Timer
 
 
 logger = get_logger('mynt')

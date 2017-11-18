@@ -2,7 +2,7 @@ from itertools import chain
 
 import pypandoc
 
-from mynt.base import Parser as _Parser
+from peppermynt.base import Parser as _Parser
 
 
 class Parser(_Parser):

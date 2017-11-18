@@ -3,9 +3,7 @@
 from calendar import timegm
 from collections import defaultdict
 from datetime import datetime
-from functools import partial
 from importlib import import_module
-from operator import eq
 from os import path as op
 import re
 
@@ -15,13 +13,13 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name
 from pygments.util import ClassNotFound
 
-from mynt.containers import Config, Container, Item, Items, Posts
-from mynt.exceptions import ConfigException, ContentException, ParserException, RendererException
-from mynt.fs import File
-from mynt.utils import get_logger, normpath, Timer, unescape, Url
+from peppermynt.containers import Config, Container, Item, Items, Posts
+from peppermynt.exceptions import ConfigException, ContentException, ParserException, RendererException
+from peppermynt.fs import File
+from peppermynt.utils import get_logger, normpath, Timer, unescape, Url
 
 
-logger = get_logger('mynt')
+logger = get_logger('peppermynt')
 
 
 class Reader(object):
@@ -39,7 +37,7 @@ class Reader(object):
         self._find_parsers()
 
     def _find_parsers(self):
-        for parser in iter_entry_points('mynt.parsers'):
+        for parser in iter_entry_points('peppermynt.parsers'):
             name = parser.name
 
             try:
@@ -90,7 +88,7 @@ class Reader(object):
             Parser = self._parsers[parser](options)
         else:
             try:
-                Parser = import_module('mynt.parsers.{0}'.format(parser)).Parser(options)
+                Parser = import_module('peppermynt.parsers.{0}'.format(parser)).Parser(options)
             except ImportError:
                 raise ParserException('The {0} parser could not be found.'.format(parser))
 
@@ -214,12 +212,12 @@ class Writer(object):
         options = self.site.get(renderer, None)
 
         try:
-            Renderer = load_entry_point('mynt', 'mynt.renderers', renderer)
+            Renderer = load_entry_point('peppermynt', 'peppermynt.renderers', renderer)
         except DistributionNotFound as e:
             raise RendererException('The {0} renderer requires {1}.'.format(renderer, str(e)))
         except ImportError:
             try:
-                Renderer = import_module('mynt.renderers.{0}'.format(renderer)).Renderer
+                Renderer = import_module('peppermynt.renderers.{0}'.format(renderer)).Renderer
             except ImportError:
                 raise RendererException('The {0} renderer could not be found.'.format(renderer))
 

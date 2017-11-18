@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import unicode_literals
 
-
-class MyntException(Exception):
+class PeppermyntException(Exception):
     code = 1
 
     def __init__(self, message, *args):
@@ -19,20 +17,20 @@ class MyntException(Exception):
         return message
 
 
-class ConfigException(MyntException):
+class ConfigException(PeppermyntException):
     pass
 
-class ContentException(MyntException):
+class ContentException(PeppermyntException):
     pass
 
-class FileSystemException(MyntException):
+class FileSystemException(PeppermyntException):
     pass
 
-class OptionException(MyntException):
+class OptionException(PeppermyntException):
     code = 2
 
-class ParserException(MyntException):
+class ParserException(PeppermyntException):
     pass
 
-class RendererException(MyntException):
+class RendererException(PeppermyntException):
     pass

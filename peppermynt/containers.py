@@ -5,9 +5,9 @@ from datetime import datetime
 
 import yaml
 
-from mynt.exceptions import ConfigException
-from mynt.fs import Directory
-from mynt.utils import get_logger, normpath, Url
+from peppermynt.exceptions import ConfigException
+from peppermynt.fs import Directory
+from peppermynt.utils import get_logger, normpath, Url
 
 
 yaml.add_constructor('tag:yaml.org,2002:str', lambda loader, node: loader.construct_scalar(node))

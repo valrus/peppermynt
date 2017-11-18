@@ -1,6 +1,6 @@
 build/
 dist/
-mynt.egg-info/
+peppermynt.egg-info/
 flycheck_*.py
 *.pyc
 *.sublime-project

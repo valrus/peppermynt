@@ -5,10 +5,10 @@ from __future__ import unicode_literals
 from http.server import SimpleHTTPRequestHandler
 from socketserver import TCPServer
 
-from mynt.utils import get_logger
+from peppermynt.utils import get_logger
 
 
-logger = get_logger('mynt')
+logger = get_logger('peppermynt')
 
 
 class RequestHandler(SimpleHTTPRequestHandler):

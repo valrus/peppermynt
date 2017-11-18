@@ -34,11 +34,13 @@ def abspath(*args):
         )
     )
 
+
 def escape(html):
     for match, replacements in _ENTITIES:
         html = html.replace(match, replacements[0])
 
     return html
+
 
 def get_logger(name):
     logger = logging.getLogger(name)
@@ -50,12 +52,14 @@ def get_logger(name):
 
     return logger
 
+
 def normpath(*args):
     return op.normpath(
         op.join(
             *_cleanpath(*args)
         )
     )
+
 
 def unescape(html):
     for replace, matches in _ENTITIES:
@@ -68,7 +72,6 @@ def unescape(html):
 class Timer(object):
     _start = []
 
-
     @classmethod
     def start(cls):
         cls._start.append(time())
@@ -76,6 +79,7 @@ class Timer(object):
     @classmethod
     def stop(cls):
         return time() - cls._start.pop()
+
 
 class Url(object):
     @staticmethod
@@ -93,7 +97,6 @@ class Url(object):
         slug = re.sub(r'[^a-z0-9\-_.]', '', slug, flags = re.I)
 
         return slug
-
 
     @classmethod
     def format(cls, url, clean):

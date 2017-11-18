@@ -1,6 +1,6 @@
 '''
-mynt
-----
+peppermynt
+----------
 
 *Another static site generator?*
 
@@ -14,11 +14,11 @@ Install
 
 From PyPI::
 
-    $ pip install mynt
+    $ pip install peppermynt
 
 Latest trunk::
 
-    $ pip install git+https://github.com/Anomareh/mynt.git
+    $ pip install git+https://github.com/valrus/peppermynt.git
 
 
 Getting started
@@ -30,45 +30,41 @@ After installing mynt head on over and give the `quickstart`_ page and `docs`_ a
 Dependencies
 ============
 
-+ `Hoep`_
 + `Jinja2`_
 + `Pygments`_
 + `PyYAML`_
 + `watchdog`_
-
-Optional
-~~~~~~~~
-
-+ `Docutils`_ *(reST)*
++ `pypandoc`_
++ `pandoc-sidenote`_
 
 
 Support
 =======
 
-If you run into any issues or have any questions, either open an `issue`_ or hop in #mynt on irc.freenode.net.
+If you run into any issues or have any questions, open an `issue`_.
 
 .. _docs: http://mynt.uhnomoli.com/
-.. _Docutils: http://docutils.sourceforge.net/
-.. _Hoep: https://github.com/Anomareh/Hoep
-.. _issue: https://github.com/Anomareh/mynt/issues
+.. _issue: https://github.com/valrus/peppermynt/issues
 .. _Jinja2: http://jinja.pocoo.org/
 .. _Pygments: http://pygments.org/
 .. _PyYAML: http://pyyaml.org/
 .. _quickstart: http://mynt.uhnomoli.com/docs/quickstart/
 .. _watchdog: http://packages.python.org/watchdog/
+.. _pypandoc: https://github.com/bebraw/pypandoc
+.. _pandoc-sidenote: https://github.com/jez/pandoc-sidenote
 '''
 from setuptools import find_packages, setup
 
-from mynt import __version__
+from peppermynt import __version__
 
 
 setup(
-    name = 'mynt',
+    name = 'peppermynt',
     version = str(__version__),
-    author = 'Andrew Fricke',
-    author_email = 'andrew@uhnomoli.com',
+    author = 'Andrew Fricke, Ian McCowan',
+    author_email = 'imccowan@gmail.com',
     url = 'http://mynt.uhnomoli.com/',
-    description = 'A static site generator.',
+    description = 'A static site generator with Tufte CSS.',
     long_description = __doc__,
     license = 'BSD',
     platforms = 'any',
@@ -76,27 +72,21 @@ setup(
     packages = find_packages(),
     include_package_data = True,
     entry_points = {
-        'mynt.parsers' : [
-            'docutils = mynt.parsers.docutils:Parser [reST]',
-            'hoep = mynt.parsers.hoep:Parser',
-            'tufte = mynt.parsers.tufte:Parser [tufte]'
+        'peppermynt.parsers' : [
+            'tufte = peppermynt.parsers.tufte:Parser'
         ],
-        'mynt.renderers': [
-            'jinja = mynt.renderers.jinja:Renderer'
+        'peppermynt.renderers': [
+            'jinja = peppermynt.renderers.jinja:Renderer'
         ],
-        'console_scripts': 'mynt = mynt.main:main'
+        'console_scripts': 'peppermynt = peppermynt.main:main'
     },
     install_requires = [
-        'hoep>=1.0.2',
         'Jinja2>=2.7.2',
         'Pygments',
         'PyYAML',
-        'watchdog'
+        'watchdog',
+        'pypandoc'
     ],
-    extras_require = {
-        'reST': 'docutils>=0.10',
-        'tufte': 'pypandoc'
-    },
     classifiers = [
         'Development Status :: 4 - Beta',
         'Environment :: Console',
@@ -105,7 +95,7 @@ setup(
         'Intended Audience :: End Users/Desktop',
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
-        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.6',
         'Topic :: Internet',
         'Topic :: Internet :: WWW/HTTP',
         'Topic :: Text Processing',

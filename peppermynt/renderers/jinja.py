@@ -10,9 +10,9 @@ from re import sub
 from jinja2 import Environment, FileSystemLoader, PrefixLoader
 from jinja2.exceptions import TemplateNotFound
 
-from mynt.base import Renderer as _Renderer
-from mynt.exceptions import RendererException
-from mynt.utils import normpath, Url
+from peppermynt.base import Renderer as _Renderer
+from peppermynt.exceptions import RendererException
+from peppermynt.utils import normpath, Url
 
 
 class _PrefixLoader(PrefixLoader):

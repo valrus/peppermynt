@@ -14,19 +14,19 @@ from time import sleep
 from pkg_resources import resource_filename
 from watchdog.observers import Observer
 
-from mynt import __version__
-from mynt.containers import Config
-from mynt.exceptions import ConfigException, OptionException
-from mynt.fs import Directory, EventHandler, File
-from mynt.processors import Reader, Writer
-from mynt.server import RequestHandler, Server
-from mynt.utils import get_logger, normpath, Timer, Url
+from peppermynt import __version__
+from peppermynt.containers import Config
+from peppermynt.exceptions import ConfigException, OptionException
+from peppermynt.fs import Directory, EventHandler, File
+from peppermynt.processors import Reader, Writer
+from peppermynt.server import RequestHandler, Server
+from peppermynt.utils import get_logger, normpath, Timer, Url
 
 
-logger = get_logger('mynt')
+logger = get_logger('peppermynt')
 
 
-class Mynt(object):
+class Peppermynt(object):
     defaults = {
         'archive_layout': None,
         'archives_url': '/',

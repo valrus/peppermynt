@@ -4,14 +4,14 @@ from __future__ import print_function, unicode_literals
 
 import sys
 
-from mynt.core import Mynt
-from mynt.exceptions import MyntException
+from peppermynt.core import Peppermynt
+from peppermynt.exceptions import PeppermyntException
 
 
 def main():
     try:
-        Mynt()
-    except MyntException as e:
+        Peppermynt()
+    except PeppermyntException as e:
         print(e)
 
         return e.code
