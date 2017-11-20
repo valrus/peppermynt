@@ -11,6 +11,9 @@ from os import chdir, getcwd, path as op
 import re
 from time import sleep
 
+from doit.task import dict_to_task
+from doit.cmd_base import TaskLoader
+from doit.doit_cmd import DoitMain
 from pkg_resources import resource_filename
 from watchdog.observers import Observer
 
@@ -24,6 +27,12 @@ from peppermynt.utils import get_logger, normpath, Timer, Url
 
 
 logger = get_logger('peppermynt')
+
+
+class PeppermyntTaskLoader(TaskLoader):
+    @staticmethod
+    def load_tasks(cmd, opt_values, pos_args):
+        pass
 
 
 class Peppermynt(object):

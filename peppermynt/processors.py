@@ -104,7 +104,6 @@ class Reader(object):
             self._get_date(f.mtime, date)
         )
 
-
     def _parse_container(self, container):
         for f in container.path:
             container.add(self._parse_item(container.config, f))
@@ -164,7 +163,6 @@ class Reader(object):
     def parse(self):
         posts = self._parse_container(Posts(self.src, self.site))
         containers = {}
-        miscellany = Container('miscellany', self.src, None)
         pages = posts.pages
 
         for name, config in self.site['containers'].items():
@@ -172,14 +170,6 @@ class Reader(object):
 
             containers[name] = container
             pages.extend(container.pages)
-
-        for f in miscellany.path:
-            if f.extension in self._extensions:
-                miscellany.add(self._parse_item(miscellany.config, f, True))
-            elif f.extension in ('.html', '.htm', '.xml'):
-                pages.append((f.path.replace(self.src.path, ''), None, None))
-
-        pages.extend(miscellany.pages)
 
         return (posts, containers, pages)
 
