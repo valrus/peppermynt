@@ -6,3 +6,6 @@ flycheck_*.py
 *.sublime-project
 *.sublime-workspace
 .python-version
+
+# emacs swap files
+.#*
