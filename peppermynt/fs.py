@@ -101,11 +101,11 @@ class Directory(object):
     def __unicode__(self):
         return self.path
 
+
 class EventHandler(FileSystemEventHandler):
     def __init__(self, src, callback):
         self._src = src
         self._callback = callback
-
 
     def _regenerate(self, path):
         path = path.replace(self._src, '')
@@ -144,7 +144,6 @@ class File(object):
         self.root = Directory(op.dirname(self.path))
         self.name, self.extension = op.splitext(op.basename(self.path))
         self.content = content
-
 
     def cp(self, dest):
         if self.exists:

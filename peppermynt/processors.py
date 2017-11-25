@@ -23,7 +23,7 @@ logger = get_logger('peppermynt')
 
 
 class Reader(object):
-    def __init__(self, src, dest, site, writer):
+    def __init__(self, src, temp, dest, site, writer):
         self._writer = writer
 
         self._parsers = {}
@@ -31,6 +31,7 @@ class Reader(object):
         self._cache = {}
 
         self.src = src
+        self.temp = temp
         self.dest = dest
         self.site = site
 
@@ -175,8 +176,9 @@ class Reader(object):
 
 
 class Writer(object):
-    def __init__(self, src, dest, site):
+    def __init__(self, src, temp, dest, site):
         self.src = src
+        self.temp = temp
         self.dest = dest
         self.site = site
 

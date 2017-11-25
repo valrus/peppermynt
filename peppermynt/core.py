@@ -10,6 +10,7 @@ import logging
 from os import chdir, getcwd, path as op
 import re
 from time import sleep
+from tempfile import gettempdir
 
 from doit.task import dict_to_task
 from doit.cmd_base import TaskLoader
@@ -334,6 +335,7 @@ class Peppermynt(object):
         Timer.start()
 
         self.src = Directory(self.args.src)
+        self.temp = Directory(op.join(gettempdir(), 'peppermynt'))
         self.dest = Directory(self.args.dest)
 
         if not self.src.exists:
@@ -430,13 +432,13 @@ class Peppermynt(object):
     @property
     def reader(self):
         if self._reader is None:
-            self._reader = Reader(self.src, self.dest, self.config, self.writer)
+            self._reader = Reader(self.src, self.temp, self.dest, self.config, self.writer)
 
         return self._reader
 
     @property
     def writer(self):
         if self._writer is None:
-            self._writer = Writer(self.src, self.dest, self.config)
+            self._writer = Writer(self.src, self.temp, self.dest, self.config)
 
         return self._writer
