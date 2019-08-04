@@ -12,7 +12,7 @@ class Parser(_Parser):
         return pypandoc.convert_text(
             markdown, 'html',
             extra_args=self.flags,
-            format='markdown+smart+raw_tex+yaml_metadata_block',
+            format='markdown+smart+raw_tex+yaml_metadata_block-pipe_tables+grid_tables',
             filters=['pandoc-sidenote']
         )
 
@@ -27,5 +27,6 @@ class Parser(_Parser):
         self.flags = [
             '--katex',
             '--section-divs',
+            '--mathjax',
             '--highlight-style=pygments',
         ] + list(chain.from_iterable(['--css', css_style] for css_style in self.css_styles))
