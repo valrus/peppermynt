@@ -13,7 +13,7 @@ from time import sleep
 from tempfile import gettempdir
 
 from doit.task import dict_to_task
-from doit.cmd_base import TaskLoader
+from doit.cmd_base import TaskLoader2, Command, DoitCmdBase
 from doit.doit_cmd import DoitMain
 from pkg_resources import resource_filename
 from watchdog.observers import Observer
@@ -30,10 +30,97 @@ from peppermynt.utils import get_logger, normpath, Timer, Url
 logger = get_logger('peppermynt')
 
 
-class PeppermyntTaskLoader(TaskLoader):
-    @staticmethod
-    def load_tasks(cmd, opt_values, pos_args):
+class PeppermyntTaskLoader(TaskLoader2):
+    """Peppermynt-specific task loader."""
+    def __init__(self, peppermynt, args):
+        self.peppermynt = peppermynt
+        self.args = args
+
+
+class PeppermyntGenerateTaskLoader(PeppermyntTaskLoader):
+    def load_doit_config(self):
         pass
+
+    def load_tasks(self, cmd, pos_args):
+        pass
+
+    def setup(self, opt_values):
+        pass
+
+
+class PeppermyntInitTaskLoader(PeppermyntTaskLoader):
+    def load_doit_config(self):
+        pass
+
+    def load_tasks(self, cmd, pos_args):
+        pass
+
+    def setup(self, opt_values):
+        pass
+
+
+class ServeCmd(Command):
+    def execute(self, params, args):
+        self.src = Directory(args.src)
+        base_url = Url.join(args.base_url, '')
+
+        if not self.src.exists:
+            raise OptionException('Source must exist.')
+
+        logger.info('>> Serving at 127.0.0.1:%s', args.port)
+        logger.info('Press ctrl+c to stop.')
+
+        cwd = getcwd()
+        self.server = Server(('', args.port), base_url, RequestHandler)
+
+        chdir(self.src.path)
+
+        try:
+            self.server.serve_forever()
+        except KeyboardInterrupt:
+            self.server.shutdown()
+            chdir(cwd)
+
+            # why?
+            print('')
+
+
+class WatchCmd(Command):
+    def execute(self, params, args):
+        self.src = Directory(args.src)
+        self.dest = Directory(args.dest)
+
+        if not self.src.exists:
+            raise OptionException('Source must exist.')
+        elif self.src == self.dest:
+            raise OptionException('Source and destination must differ.')
+        elif self.dest.exists and not args.force:
+            raise OptionException('Destination already exists.',
+                'the -f flag must be passed to force watching by emptying the destination every time a change is made')
+
+        logger.info('>> Watching')
+        logger.info('Press ctrl+c to stop.')
+
+        self.observer = Observer()
+
+        self.observer.schedule(EventHandler(self.src.path, self._regenerate), self.src.path, True)
+        self.observer.start()
+
+        try:
+            while True:
+                sleep(1)
+        except KeyboardInterrupt:
+            self.observer.stop()
+
+            print('')
+
+        self.observer.join()
+
+
+
+class DoitPeppermynt(DoitMain):
+    """Peppermynt-specific DoitMain."""
+    pass
 
 
 class Peppermynt(object):
@@ -80,7 +167,10 @@ class Peppermynt(object):
 
         logger.setLevel(self.args.level)
 
-        self.args.func()
+        if self.args.cmd:
+            self.doit = DoitPeppermynt(self.args.task_loader(self.args))
+        elif self.args.func:
+            self.args.func()
 
     @staticmethod
     def _logging_level(arg):
@@ -131,7 +221,7 @@ class Peppermynt(object):
             action='store_true',
             help='Forces generation by emptying the destination if it exists.')
 
-        gen.set_defaults(func=self.generate)
+        gen.set_defaults(cmd="generate")
 
         init=sub.add_parser('init')
 
@@ -149,7 +239,7 @@ class Peppermynt(object):
             default='dark',
             help='Sets which theme will be used.')
 
-        init.set_defaults(func=self.init)
+        init.set_defaults(cmd="init")
 
         serve=sub.add_parser('serve')
 
@@ -375,59 +465,6 @@ class Peppermynt(object):
             self.src.cp(self.dest.path, False)
 
         logger.info('Completed in %.3fs', Timer.stop())
-
-    def serve(self):
-        self.src = Directory(self.args.src)
-        base_url = Url.join(self.args.base_url, '')
-
-        if not self.src.exists:
-            raise OptionException('Source must exist.')
-
-        logger.info('>> Serving at 127.0.0.1:%s', self.args.port)
-        logger.info('Press ctrl+c to stop.')
-
-        cwd = getcwd()
-        self.server = Server(('', self.args.port), base_url, RequestHandler)
-
-        chdir(self.src.path)
-
-        try:
-            self.server.serve_forever()
-        except KeyboardInterrupt:
-            self.server.shutdown()
-            chdir(cwd)
-
-            print('')
-
-    def watch(self):
-        self.src = Directory(self.args.src)
-        self.dest = Directory(self.args.dest)
-
-        if not self.src.exists:
-            raise OptionException('Source must exist.')
-        elif self.src == self.dest:
-            raise OptionException('Source and destination must differ.')
-        elif self.dest.exists and not self.args.force:
-            raise OptionException('Destination already exists.',
-                'the -f flag must be passed to force watching by emptying the destination every time a change is made')
-
-        logger.info('>> Watching')
-        logger.info('Press ctrl+c to stop.')
-
-        self.observer = Observer()
-
-        self.observer.schedule(EventHandler(self.src.path, self._regenerate), self.src.path, True)
-        self.observer.start()
-
-        try:
-            while True:
-                sleep(1)
-        except KeyboardInterrupt:
-            self.observer.stop()
-
-            print('')
-
-        self.observer.join()
 
     @property
     def reader(self):
