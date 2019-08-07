@@ -277,8 +277,10 @@ class Peppermynt(object):
 
         return parser.parse_args(args)
 
+
     def _get_theme(self, theme):
         return resource_filename(__name__, 'themes/{0}'.format(theme))
+
 
     def _update_config(self):
         self.config = deepcopy(self.defaults)
@@ -289,59 +291,80 @@ class Peppermynt(object):
             f = File(normpath(self.src.path, 'config' + ext))
 
             if f.exists:
-                logger.debug('..  found: %s', f.path)
-
-                try:
-                    self.config.update(Config(f.content))
-                except ConfigException as e:
-                    raise ConfigException(e.message, 'src: {0}'.format(f.path))
-
-                self.config['locale'] = self.args.locale or self.config['locale']
-
-                self.config['assets_url'] = Url.join(self.config['assets_url'], '')
-                self.config['base_url'] = Url.join(self.args.base_url or self.config['base_url'], '')
-
-                for setting in ('archives_url', 'posts_url', 'tags_url'):
-                    self.config[setting] = Url.join(self.config[setting])
-
-                for setting in ('archives_url', 'assets_url', 'base_url', 'posts_url', 'tags_url'):
-                    if re.search(r'(?:^\.{2}/|/\.{2}$|/\.{2}/)', self.config[setting]):
-                        raise ConfigException('Invalid config setting.',
-                            'setting: {0}'.format(setting),
-                            'path traversal is not allowed')
-
-                containers_src = normpath(self.src.path, '_containers')
-
-                for name, config in self.config['containers'].items():
-                    if op.commonprefix((containers_src, normpath(containers_src, name))) != containers_src:
-                        raise ConfigException('Invalid config setting.',
-                            'setting: containers:{0}'.format(name),
-                            'container name contains illegal characters')
-
-                    try:
-                        url = Url.join(config['url'])
-                    except KeyError:
-                        raise ConfigException('Invalid config setting.',
-                            'setting: containers:{0}'.format(name),
-                            'url must be set for all containers')
-
-                    if re.search(r'(?:^\.{2}/|/\.{2}$|/\.{2}/)', url):
-                        raise ConfigException('Invalid config setting.',
-                            'setting: containers:{0}:url'.format(name),
-                            'path traversal is not allowed')
-
-                    config.update((k, v) for k, v in self.container_defaults.items() if k not in config)
-                    config['url'] = url
-
-                for pattern in self.config['include']:
-                    if op.commonprefix((self.src.path, normpath(self.src.path, pattern))) != self.src.path:
-                        raise ConfigException('Invalid include path.',
-                            'path: {0}'.format(pattern),
-                            'path traversal is not allowed')
+                self._update_config_from_file(f)
 
                 break
         else:
             logger.debug('..  no config file found')
+
+
+    def _update_config_from_file(self, f):
+        logger.debug('..  found: %s', f.path)
+
+        try:
+            self.config.update(Config(f.content))
+        except ConfigException as e:
+            raise ConfigException(e.message, 'src: {0}'.format(f.path))
+
+        self.config['locale'] = self.args.locale or self.config['locale']
+
+        self.config['assets_url'] = Url.join(self.config['assets_url'], '')
+        self.config['base_url'] = Url.join(self.args.base_url or self.config['base_url'], '')
+
+        for setting in ('archives_url', 'posts_url', 'tags_url'):
+            self.config[setting] = Url.join(self.config[setting])
+
+        for setting in ('archives_url', 'assets_url', 'base_url', 'posts_url', 'tags_url'):
+            if re.search(r'(?:^\.{2}/|/\.{2}$|/\.{2}/)', self.config[setting]):
+                raise ConfigException(
+                    'Invalid config setting.',
+                    'setting: {0}'.format(setting),
+                    'path traversal is not allowed'
+                )
+
+        containers_src = normpath(self.src.path, '_containers')
+
+        for name, config in self.config['containers'].items():
+            url = self._check_container(name, config, containers_src)
+
+            config.update((k, v) for k, v in self.container_defaults.items() if k not in config)
+            config['url'] = url
+
+        for pattern in self.config['include']:
+            if op.commonprefix((self.src.path, normpath(self.src.path, pattern))) != self.src.path:
+                raise ConfigException(
+                    'Invalid include path.',
+                    'path: {0}'.format(pattern),
+                    'path traversal is not allowed'
+                )
+
+
+    @staticmethod
+    def _check_container(container_name, container_config, containers_src):
+        if op.commonprefix((containers_src, normpath(containers_src, container_name))) != containers_src:
+            raise ConfigException(
+                'Invalid config setting.',
+                'setting: containers:{0}'.format(container_name),
+                'container name contains illegal characters'
+            )
+
+        try:
+            url = Url.join(container_config['url'])
+        except KeyError:
+            raise ConfigException(
+                'Invalid config setting.',
+                'setting: containers:{0}'.format(container_name),
+                'url must be set for all containers'
+            )
+
+        if re.search(r'(?:^\.{2}/|/\.{2}$|/\.{2}/)', url):
+            raise ConfigException(
+                'Invalid config setting.',
+                'setting: containers:{0}:url'.format(container_name),
+                'path traversal is not allowed'
+            )
+
+        return url
 
 
     def _initialize(self):
