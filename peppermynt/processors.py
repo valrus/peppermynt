@@ -236,9 +236,11 @@ class Writer(object):
     def register(self, data):
         self._renderer.register(data)
 
+    def render_path(self, template, _data = None, url = None):
+        self._get_path(url or template)
+
     def render(self, template, data = None, url = None):
-        url = url if url is not None else template
-        path = self._get_path(url)
+        path = self.render_path(template, data, url)
 
         try:
             Timer.start()
@@ -250,7 +252,9 @@ class Writer(object):
 
             logger.debug('..  (%.3fs) %s', Timer.stop(), path.replace(self.dest.path, ''))
         except RendererException as e:
-            raise RendererException(e.message,
-                '{0} in container item {1}'.format(template, data.get('item', url)))
+            raise RendererException(
+                e.message,
+                '{0} in container item {1}'.format(template, data.get('item', url or template))
+            )
 
         return File(path, content)

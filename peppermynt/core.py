@@ -5,61 +5,34 @@ from __future__ import print_function, unicode_literals
 from argparse import ArgumentParser
 from copy import deepcopy
 from glob import iglob
+from itertools import chain
+from os import chdir, getcwd, path as op
+from tempfile import gettempdir
+from time import sleep
 import locale
 import logging
-from os import chdir, getcwd, path as op
 import re
-from time import sleep
-from tempfile import gettempdir
 
-from doit.task import dict_to_task
-from doit.cmd_base import TaskLoader2, Command, DoitCmdBase
+from doit.cmd_base import Command
 from doit.doit_cmd import DoitMain
 from pkg_resources import resource_filename
 from watchdog.observers import Observer
 
 from peppermynt import __version__
-from peppermynt.containers import Config
-from peppermynt.exceptions import ConfigException, OptionException
-from peppermynt.fs import Directory, EventHandler, File
-from peppermynt.processors import Reader, Writer
-from peppermynt.server import RequestHandler, Server
-from peppermynt.utils import get_logger, normpath, Timer, Url
+from .containers import Config
+from .exceptions import ConfigException, OptionException
+from .fs import Directory, EventHandler, File
+from .processors import Reader, Writer
+from .server import RequestHandler, Server
+from .task_loader import PeppermyntTaskLoader
+from .utils import get_logger, normpath, Timer, Url
+from .cmds.generate import Generate, Gen # , Init, Watch, Serve
 
 
 logger = get_logger('peppermynt')
 
 
-class PeppermyntTaskLoader(TaskLoader2):
-    """Peppermynt-specific task loader."""
-    def __init__(self, peppermynt, args):
-        self.peppermynt = peppermynt
-        self.args = args
-
-
-class PeppermyntGenerateTaskLoader(PeppermyntTaskLoader):
-    def load_doit_config(self):
-        pass
-
-    def load_tasks(self, cmd, pos_args):
-        pass
-
-    def setup(self, opt_values):
-        pass
-
-
-class PeppermyntInitTaskLoader(PeppermyntTaskLoader):
-    def load_doit_config(self):
-        pass
-
-    def load_tasks(self, cmd, pos_args):
-        pass
-
-    def setup(self, opt_values):
-        pass
-
-
-class ServeCmd(Command):
+class PeppermyntServeCmd(Command):
     def execute(self, params, args):
         self.src = Directory(args.src)
         base_url = Url.join(args.base_url, '')
@@ -85,7 +58,7 @@ class ServeCmd(Command):
             print('')
 
 
-class WatchCmd(Command):
+class PeppermyntWatchCmd(Command):
     def execute(self, params, args):
         self.src = Directory(args.src)
         self.dest = Directory(args.dest)
@@ -117,10 +90,18 @@ class WatchCmd(Command):
         self.observer.join()
 
 
-
 class DoitPeppermynt(DoitMain):
     """Peppermynt-specific DoitMain."""
-    pass
+
+    DOIT_CMDS = list(DoitMain.DOIT_CMDS) + [Generate, Gen]
+    TASK_LOADER = PeppermyntTaskLoader
+
+    def __init__(self, peppermynt):
+        """Initialize DoitPeppermynt."""
+        super().__init__()
+        self.peppermynt = peppermynt
+        peppermynt.doit = self
+        self.task_loader = self.TASK_LOADER(peppermynt)
 
 
 class Peppermynt(object):
@@ -153,24 +134,25 @@ class Peppermynt(object):
         'tags_url': '/'
     }
 
-    def __init__(self, args = None):
-        self._reader = None
+    def __init__(self, args=None):
         self._writer = None
 
-        self.config = None
-        self.posts = None
-        self.containers = None
+        self.config, self.posts, self.containers = None, None, None
         self.data = {}
         self.pages = None
 
-        self.args = self._get_args(args)
+        self.src, self.dest, self.temp = None, None, None
+
+        self.args, self.doit_args = self._get_args(args)
+
+        self._reader, self._writer = None, None
 
         logger.setLevel(self.args.level)
 
-        if self.args.cmd:
-            self.doit = DoitPeppermynt(self.args.task_loader(self.args))
-        elif self.args.func:
-            self.args.func()
+        # if self.args.cmd:
+        #     self.doit = DoitPeppermynt(self.args.task_loader(self.args))
+        # elif self.args.func:
+        #     self.args.func()
 
     @staticmethod
     def _logging_level(arg):
@@ -214,20 +196,26 @@ class Peppermynt(object):
 
         force=gen.add_mutually_exclusive_group()
 
-        force.add_argument('-c', '--clean',
+        force.add_argument(
+            '-c', '--clean',
             action='store_true',
-            help='Forces generation by deleting the destination if it exists.')
-        force.add_argument('-f', '--force',
+            help='Forces generation by deleting the destination if it exists.'
+        )
+        force.add_argument(
+            '-f', '--force',
             action='store_true',
-            help='Forces generation by emptying the destination if it exists.')
+            help='Forces generation by emptying the destination if it exists.'
+        )
 
-        gen.set_defaults(cmd="generate")
+        gen.set_defaults(task=Generate)
 
-        init=sub.add_parser('init')
+        init = sub.add_parser('init')
 
-        init.add_argument('dest',
+        init.add_argument(
+            'dest',
             metavar='destination',
-            help='The directory %(prog)s outputs to.')
+            help='The directory %(prog)s outputs to.'
+        )
 
         init.add_argument('--bare',
             action='store_true',
@@ -239,7 +227,7 @@ class Peppermynt(object):
             default='dark',
             help='Sets which theme will be used.')
 
-        init.set_defaults(cmd="init")
+        init.set_defaults(task=Generate)
 
         serve=sub.add_parser('serve')
 
@@ -254,7 +242,7 @@ class Peppermynt(object):
             default=8080, type=int,
             help='Sets the port used by the server.')
 
-        serve.set_defaults(func=self.serve)
+        serve.set_defaults(cmd=PeppermyntServeCmd)
 
         watch=sub.add_parser('watch')
 
@@ -273,16 +261,14 @@ class Peppermynt(object):
         watch.add_argument('--locale',
             help='Sets the locale used by the renderer.')
 
-        watch.set_defaults(func=self.watch)
+        watch.set_defaults(cmd=PeppermyntWatchCmd)
 
-        return parser.parse_args(args)
-
+        return parser.parse_known_args(args)
 
     def _get_theme(self, theme):
         return resource_filename(__name__, 'themes/{0}'.format(theme))
 
-
-    def _update_config(self):
+    def update_config(self):
         self.config = deepcopy(self.defaults)
 
         logger.debug('>> Searching for config')
@@ -296,7 +282,6 @@ class Peppermynt(object):
                 break
         else:
             logger.debug('..  no config file found')
-
 
     def _update_config_from_file(self, f):
         logger.debug('..  found: %s', f.path)
@@ -325,7 +310,7 @@ class Peppermynt(object):
         containers_src = normpath(self.src.path, '_containers')
 
         for name, config in self.config['containers'].items():
-            url = self._check_container(name, config, containers_src)
+            url = self._container_url(name, config, containers_src)
 
             config.update((k, v) for k, v in self.container_defaults.items() if k not in config)
             config['url'] = url
@@ -340,7 +325,7 @@ class Peppermynt(object):
 
 
     @staticmethod
-    def _check_container(container_name, container_config, containers_src):
+    def _container_url(container_name, container_config, containers_src):
         if op.commonprefix((containers_src, normpath(containers_src, container_name))) != containers_src:
             raise ConfigException(
                 'Invalid config setting.',
@@ -366,20 +351,23 @@ class Peppermynt(object):
 
         return url
 
-
     def _initialize(self):
+        self.src = Directory(self.args.src)
+        self.dest = Directory(self.args.dest)
+        self.temp = Directory(op.join(gettempdir(), 'peppermynt'))
+
         logger.debug('>> Initializing\n..  src:  %s\n..  dest: %s', self.src.path, self.dest.path)
 
-        self._update_config()
+        self.update_config()
 
         if self.config['locale']:
             try:
                 locale.setlocale(locale.LC_ALL, (self.config['locale'], 'utf-8'))
             except locale.Error:
-                raise ConfigException('Locale not available.',
-                    'run `locale -a` to see available locales')
+                raise ConfigException('Locale not available.', 'run `locale -a` to see available locales')
 
         self.writer.register({'site': self.config})
+
 
     def _parse(self):
         logger.info('>> Parsing')
@@ -400,40 +388,70 @@ class Peppermynt(object):
         for i, page in enumerate(self.pages):
             self.pages[i] = self.writer.render(*page)
 
-    def _generate(self):
-        self._initialize()
-        self._parse()
-        self._render()
+    def create_dirs_tasks(self):
+        if self.dest.exists:
+            if self.args.force:
+                yield {'actions': [(self.dest.empty, [])]}
+            else:
+                yield {'actions': [(self.dest.rm, [])]}
+        else:
+            yield {
+                'actions': [(self.dest.mk, [])],
+                'targets': [self.dest.path]
+            }
 
-        logger.info('>> Generating')
+    def render_to_file(self, *args):
+        out_file = self.writer.render(*args)
+        out_file.mk()
 
+    def render_task(self, page):
+        return {
+            'actions': [(self.render_to_file, page)],
+            'targets': [self.writer.render_path(*page)]
+        }
+
+    def copy_assets_tasks(self):
         assets_src = Directory(normpath(self.src.path, '_assets'))
         assets_dest = Directory(normpath(self.dest.path, *self.config['assets_url'].split('/')))
 
-        if self.dest.exists:
-            if self.args.force:
-                self.dest.empty()
-            else:
-                self.dest.rm()
-        else:
-            self.dest.mk()
+        yield {
+            'actions': [(assets_src.cp, [assets_dest.path])],
+            'targets': [assets_dest.path]
+        }
 
-        for page in self.pages:
-            page.mk()
-
-        assets_src.cp(assets_dest.path)
-
+    def copy_includes_tasks(self):
         for pattern in self.config['include']:
             for path in iglob(normpath(self.src.path, pattern)):
                 dest = path.replace(self.src.path, self.dest.path)
 
                 if op.isdir(path):
-                    Directory(path).cp(dest, False)
+                    src_path = Directory(path)
                 elif op.isfile(path):
-                    File(path).cp(dest)
+                    src_path = File(path)
+                yield {
+                    'actions': [(src_path.cp, [dest, False])],
+                    'targets': [dest]
+                }
+
+    def generate_tasks(self):
+        self._initialize()
+        self._parse()
+
+        create_dirs_tasks = self.create_dirs_tasks() # this function should yield one or two things
+        render_pages_tasks = (self.render_task(page) for page in self.pages)
+        copy_assets_tasks = self.copy_assets_tasks()
+        copy_includes_tasks = self.copy_includes_tasks()
+
+        import ipdb; ipdb.set_trace();
+
+        chain(
+            create_dirs_tasks,
+            render_pages_tasks,
+            copy_assets_tasks,
+            copy_includes_tasks
+        )
 
     def _regenerate(self):
-        self._reader = None
         self._writer = None
 
         self.config = None
@@ -442,14 +460,10 @@ class Peppermynt(object):
         self.data.clear()
         self.pages = None
 
-        self._generate()
+        self.generate_tasks()
 
     def generate(self):
         Timer.start()
-
-        self.src = Directory(self.args.src)
-        self.temp = Directory(op.join(gettempdir(), 'peppermynt'))
-        self.dest = Directory(self.args.dest)
 
         if not self.src.exists:
             raise OptionException('Source must exist.')
