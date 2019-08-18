@@ -164,6 +164,7 @@ class Reader(object):
     def parse(self):
         posts = self._parse_container(Posts(self.src, self.site))
         containers = {}
+        miscellany = Container('miscellany', self.src, None)
         pages = posts.pages
 
         for name, config in self.site['containers'].items():
@@ -171,6 +172,14 @@ class Reader(object):
 
             containers[name] = container
             pages.extend(container.pages)
+
+        for f in miscellany.path:
+            if f.extension in self._extensions:
+                miscellany.add(self._parse_item(miscellany.config, f, True))
+            elif f.extension in ('.html', '.htm', '.xml'):
+                pages.append((f.path.replace(self.src.path, ''), None, None))
+
+        pages.extend(miscellany.pages)
 
         return (posts, containers, pages)
 
@@ -237,7 +246,7 @@ class Writer(object):
         self._renderer.register(data)
 
     def render_path(self, template, _data = None, url = None):
-        self._get_path(url or template)
+        return self._get_path(url or template)
 
     def render(self, template, data = None, url = None):
         path = self.render_path(template, data, url)

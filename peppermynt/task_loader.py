@@ -7,7 +7,7 @@ import sys
 
 from doit.cmd_base import TaskLoader
 from doit.loader import generate_tasks
-from doit.reporter import ExecutedOnlyReporter
+from doit.reporter import ExecutedOnlyReporter, ConsoleReporter
 
 from .containers import Posts, Items
 from .exceptions import ConfigException, OptionException
@@ -42,7 +42,7 @@ class PeppermyntTaskLoader(TaskLoader):
 
     def load_tasks(self, cmd, opt_values, pos_args):
         doit_config = {
-            'reporter': ExecutedOnlyReporter,
+            'reporter': ConsoleReporter,
             'outfile': sys.stderr,
         }
         return generate_tasks('render_site', self.peppermynt.generate_tasks()), doit_config

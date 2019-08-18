@@ -391,11 +391,18 @@ class Peppermynt(object):
     def create_dirs_tasks(self):
         if self.dest.exists:
             if self.args.force:
-                yield {'actions': [(self.dest.empty, [])]}
+                yield {
+                    'basename': f'empty {self.dest.path}',
+                    'actions': [(self.dest.empty, [])]
+                }
             else:
-                yield {'actions': [(self.dest.rm, [])]}
+                yield {
+                    'basename': f'rm {self.dest.path}',
+                    'actions': [(self.dest.rm, [])]
+                }
         else:
             yield {
+                'basename': f'create dir {self.dest.path}',
                 'actions': [(self.dest.mk, [])],
                 'targets': [self.dest.path]
             }
@@ -405,9 +412,11 @@ class Peppermynt(object):
         out_file.mk()
 
     def render_task(self, page):
+        template, _data, url = page
         return {
+            'basename': f'render {url or template}',
             'actions': [(self.render_to_file, page)],
-            'targets': [self.writer.render_path(*page)]
+            'targets': [self.writer.render_path(*page)],
         }
 
     def copy_assets_tasks(self):
@@ -415,8 +424,9 @@ class Peppermynt(object):
         assets_dest = Directory(normpath(self.dest.path, *self.config['assets_url'].split('/')))
 
         yield {
+            'basename': f'copy asset {assets_src.path} -> {assets_dest.path}',
             'actions': [(assets_src.cp, [assets_dest.path])],
-            'targets': [assets_dest.path]
+            'targets': [assets_dest.path],
         }
 
     def copy_includes_tasks(self):
@@ -426,30 +436,38 @@ class Peppermynt(object):
 
                 if op.isdir(path):
                     src_path = Directory(path)
+                    yield {
+                        'basename': f'copy include directory {src_path.path}',
+                        'actions': [(src_path.cp, [dest, False])],
+                        'targets': [dest],
+                    }
                 elif op.isfile(path):
                     src_path = File(path)
-                yield {
-                    'actions': [(src_path.cp, [dest, False])],
-                    'targets': [dest]
-                }
+                    yield {
+                        'basename': f'copy include file {src_path.path}',
+                        'actions': [(src_path.cp, [dest])],
+                        'targets': [dest],
+                    }
 
     def generate_tasks(self):
         self._initialize()
         self._parse()
+        self.writer.register(self.data)
 
         create_dirs_tasks = self.create_dirs_tasks() # this function should yield one or two things
         render_pages_tasks = (self.render_task(page) for page in self.pages)
         copy_assets_tasks = self.copy_assets_tasks()
         copy_includes_tasks = self.copy_includes_tasks()
 
-        import ipdb; ipdb.set_trace();
-
-        chain(
+        task_chain = chain(
             create_dirs_tasks,
             render_pages_tasks,
             copy_assets_tasks,
             copy_includes_tasks
         )
+
+        # doit expects specifically a generator, of which an itertools chain isn't one
+        return (task for task in task_chain)
 
     def _regenerate(self):
         self._writer = None
