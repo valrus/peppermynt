@@ -395,7 +395,7 @@ class Peppermynt(object):
                     'basename': f'empty {self.dest.path}',
                     'actions': [(self.dest.empty, [])]
                 }
-            else:
+            elif self.args.clean:
                 yield {
                     'basename': f'rm {self.dest.path}',
                     'actions': [(self.dest.rm, [])]
