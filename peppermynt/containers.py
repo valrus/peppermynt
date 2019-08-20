@@ -29,13 +29,28 @@ class Config(dict):
 
 
 class Data(object):
-    def __init__(self, items, archives, tags):
+    def __init__(self, *, items, archives, tags):
         self.items = items
         self.archives = archives
         self.tags = tags
 
     def __iter__(self):
-        return self.items.__iter__()
+        return self.items.values().__iter__()
+
+    def sort_items(self, key, reverse=False):
+        def sort_key(url_and_item):
+            _, item = url_and_item
+            try:
+                attribute = item.get(key, item)
+            except AttributeError:
+                attribute = getattr(item, key, item)
+
+            if isinstance(attribute, str):
+                return attribute.lower()
+
+            return attribute
+
+        self.items = OrderedDict(sorted(self.items.items(), key=sort_key, reverse=reverse))
 
 
 class Item(dict):
@@ -67,7 +82,7 @@ class Container(object):
         self.name = name
         self.path = src
         self.config = {} if config is None else config
-        self.data = Data([], OrderedDict(), OrderedDict())
+        self.data = Data(items=OrderedDict(), archives=OrderedDict(), tags=OrderedDict())
 
     def _get_pages(self):
         pages = []
@@ -80,9 +95,8 @@ class Container(object):
 
         return pages
 
-
     def add(self, item):
-        self.items.append(item)
+        self.data.items[item['url']] = item
 
     def archive(self):
         pass
@@ -93,14 +107,13 @@ class Container(object):
     def tag(self):
         pass
 
-
     @property
     def archives(self):
         return self.data.archives
 
     @property
     def items(self):
-        return self.data.items
+        return list(self.data.items.values())
 
     @property
     def pages(self):
@@ -173,23 +186,6 @@ class Items(Container):
             except IndexError:
                 item['next'] = None
 
-    def _sort(self, container, key, order = 'asc'):
-        reverse = self._sort_order.get(order.lower(), False)
-
-        def sort(item):
-            try:
-                attribute = item.get(key, item)
-            except AttributeError:
-                attribute = getattr(item, key, item)
-
-            if isinstance(attribute, str):
-                return attribute.lower()
-
-            return attribute
-
-        container.sort(key = sort, reverse = reverse)
-
-
     def archive(self):
         self._archive(self.items, self.archives)
 
@@ -197,7 +193,10 @@ class Items(Container):
             self._archive(tag.items, tag.archives)
 
     def sort(self):
-        self._sort(self.items, self.config['sort'], self.config['order'])
+        self.data.sort_items(
+            key=self.config['sort'],
+            reverse=self._sort_order.get(self.config['order'].lower(), False)
+        )
         self._relate()
 
     def tag(self):
@@ -221,8 +220,7 @@ class Items(Container):
                 OrderedDict()
             ))
 
-        self._sort(tags, 'name')
-        self._sort(tags, 'count', 'desc')
+        tags.sort(key=lambda item: (-item.count, item.name))
 
         self.tags.clear()
 

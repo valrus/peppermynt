@@ -452,6 +452,7 @@ class Peppermynt(object):
     def generate_tasks(self):
         self._initialize()
         self._parse()
+        import ipdb; ipdb.set_trace()
         self.writer.register(self.data)
 
         create_dirs_tasks = self.create_dirs_tasks() # this function should yield one or two things
