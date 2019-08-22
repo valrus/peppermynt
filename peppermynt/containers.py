@@ -2,6 +2,7 @@
 
 from collections import OrderedDict
 from datetime import datetime
+from itertools import tee, chain
 
 import yaml
 
@@ -175,16 +176,24 @@ class Items(Container):
         return pages
 
     def _relate(self):
-        for i, item in enumerate(self.items):
-            if i:
-                item['prev'] = self.items[i - 1]
-            else:
-                item['prev'] = None
+        def pairwise(iterable):
+            "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+            a, b = tee(iterable)
+            a = chain([None], a)
+            b = chain(b, [None])
+            return zip(a, b)
 
-            try:
-                item['next'] = self.items[i + 1]
-            except IndexError:
-                item['next'] = None
+        for item1, item2 in pairwise(self.items):
+            if self._sort_descending():
+                this_item, next_item = item1, item2
+            else:
+                next_item, this_item = item1, item2
+
+            if this_item:
+                this_item['next'] = next_item
+
+            if next_item:
+                next_item['prev'] = this_item
 
     def archive(self):
         self._archive(self.items, self.archives)
@@ -195,9 +204,12 @@ class Items(Container):
     def sort(self):
         self.data.sort_items(
             key=self.config['sort'],
-            reverse=self._sort_order.get(self.config['order'].lower(), False)
+            reverse=self._sort_descending()
         )
         self._relate()
+
+    def _sort_descending(self):
+        return self._sort_order.get(self.config['order'].lower(), False)
 
     def tag(self):
         tags = []
