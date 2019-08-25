@@ -6,100 +6,39 @@ from argparse import ArgumentParser
 from copy import deepcopy
 from glob import iglob
 from itertools import chain
-from os import chdir, getcwd, path as op
+from os import path as op
 from tempfile import gettempdir
-from time import sleep
 import locale
 import logging
 import re
 
-from doit.cmd_base import Command
 from doit.doit_cmd import DoitMain
 from pkg_resources import resource_filename
-from watchdog.observers import Observer
 
 from peppermynt import __version__
 from .containers import Config
 from .exceptions import ConfigException, OptionException
-from .fs import Directory, EventHandler, File
+from .fs import Directory, File
 from .processors import Reader, Writer
-from .server import RequestHandler, Server
 from .task_loader import PeppermyntTaskLoader
 from .utils import get_logger, normpath, Timer, Url
-from .cmds.generate import Generate, Gen # , Init, Watch, Serve
+from .cmds import Generate, Gen, Serve, Watch # , Init, Watch, Serve
 
 
 logger = get_logger('peppermynt')
 
 
-class PeppermyntServeCmd(Command):
-    def execute(self, params, args):
-        self.src = Directory(args.src)
-        base_url = Url.join(args.base_url, '')
-
-        if not self.src.exists:
-            raise OptionException('Source must exist.')
-
-        logger.info('>> Serving at 127.0.0.1:%s', args.port)
-        logger.info('Press ctrl+c to stop.')
-
-        cwd = getcwd()
-        self.server = Server(('', args.port), base_url, RequestHandler)
-
-        chdir(self.src.path)
-
-        try:
-            self.server.serve_forever()
-        except KeyboardInterrupt:
-            self.server.shutdown()
-            chdir(cwd)
-
-            # why?
-            print('')
-
-
-class PeppermyntWatchCmd(Command):
-    def execute(self, params, args):
-        self.src = Directory(args.src)
-        self.dest = Directory(args.dest)
-
-        if not self.src.exists:
-            raise OptionException('Source must exist.')
-        elif self.src == self.dest:
-            raise OptionException('Source and destination must differ.')
-        elif self.dest.exists and not args.force:
-            raise OptionException('Destination already exists.',
-                'the -f flag must be passed to force watching by emptying the destination every time a change is made')
-
-        logger.info('>> Watching')
-        logger.info('Press ctrl+c to stop.')
-
-        self.observer = Observer()
-
-        self.observer.schedule(EventHandler(self.src.path, self._regenerate), self.src.path, True)
-        self.observer.start()
-
-        try:
-            while True:
-                sleep(1)
-        except KeyboardInterrupt:
-            self.observer.stop()
-
-            print('')
-
-        self.observer.join()
-
-
 class DoitPeppermynt(DoitMain):
     """Peppermynt-specific DoitMain."""
 
-    DOIT_CMDS = list(DoitMain.DOIT_CMDS) + [Generate, Gen]
+    DOIT_CMDS = list(DoitMain.DOIT_CMDS) + [Generate, Gen, Serve]
     TASK_LOADER = PeppermyntTaskLoader
 
-    def __init__(self, peppermynt):
+    def __init__(self, peppermynt, *args, **kwargs):
         """Initialize DoitPeppermynt."""
-        super().__init__()
-        self.peppermynt = peppermynt
+        kwargs.setdefault('extra_config', {})
+        kwargs['extra_config']['PEPPERMYNT'] = { 'peppermynt': peppermynt }
+        super().__init__(*args, **kwargs)
         peppermynt.doit = self
         self.task_loader = self.TASK_LOADER(peppermynt)
 
@@ -207,7 +146,7 @@ class Peppermynt(object):
             help='Forces generation by emptying the destination if it exists.'
         )
 
-        gen.set_defaults(task=Generate)
+        gen.set_defaults(doit_cmd='generate')
 
         init = sub.add_parser('init')
 
@@ -227,13 +166,15 @@ class Peppermynt(object):
             default='dark',
             help='Sets which theme will be used.')
 
-        init.set_defaults(task=Generate)
+        init.set_defaults(doit_cmd='init')
 
         serve=sub.add_parser('serve')
 
-        serve.add_argument('src',
+        serve.add_argument(
+            'src',
             nargs='?', default='.', metavar='source',
-            help='The directory %(prog)s will serve.')
+            help='The directory %(prog)s will serve.'
+        )
 
         serve.add_argument('--base-url',
             default='/',
@@ -242,7 +183,7 @@ class Peppermynt(object):
             default=8080, type=int,
             help='Sets the port used by the server.')
 
-        serve.set_defaults(cmd=PeppermyntServeCmd)
+        serve.set_defaults(doit_cmd='serve')
 
         watch=sub.add_parser('watch')
 
@@ -261,9 +202,13 @@ class Peppermynt(object):
         watch.add_argument('--locale',
             help='Sets the locale used by the renderer.')
 
-        watch.set_defaults(cmd=PeppermyntWatchCmd)
+        watch.set_defaults(doit_cmd='watch')
 
-        return parser.parse_known_args(args)
+        peppermynt_args, doit_args = parser.parse_known_args(args)
+
+        doit_args = [ peppermynt_args.doit_cmd ] + doit_args
+
+        return peppermynt_args, doit_args
 
     def _get_theme(self, theme):
         return resource_filename(__name__, 'themes/{0}'.format(theme))
@@ -469,7 +414,7 @@ class Peppermynt(object):
         # doit expects specifically a generator, of which an itertools chain isn't one
         return (task for task in task_chain)
 
-    def _regenerate(self):
+    def regenerate(self):
         self._writer = None
 
         self.config = None
