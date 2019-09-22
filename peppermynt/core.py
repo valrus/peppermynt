@@ -10,6 +10,7 @@ from os import path as op
 from tempfile import gettempdir
 import locale
 import logging
+import os
 import re
 
 from doit.doit_cmd import DoitMain
@@ -360,6 +361,7 @@ class Peppermynt(object):
         template, _data, url = page
         return {
             'basename': f'render {url or template}',
+            # 'file_dep': [page],
             'actions': [(self.render_to_file, page)],
             'targets': [self.writer.render_path(*page)],
         }
@@ -369,10 +371,35 @@ class Peppermynt(object):
         assets_dest = Directory(normpath(self.dest.path, *self.config['assets_url'].split('/')))
 
         yield {
-            'basename': f'copy asset {assets_src.path} -> {assets_dest.path}',
-            'actions': [(assets_src.cp, [assets_dest.path])],
+            'basename': f'make root asset directory {assets_dest.path}',
+            'actions': [(assets_dest.mk, [])],
             'targets': [assets_dest.path],
+            'uptodate': [True],
         }
+
+        for (dirpath, dirnames, filenames) in os.walk(assets_src.path):
+            for dirname in dirnames:
+                assets_dest_subdir = Directory(os.path.join(assets_dest.path, op.relpath(dirpath, assets_src.path), dirname))
+                yield {
+                    'basename': f'make asset subdirectory {assets_dest_subdir.path}',
+                    'actions': [(assets_dest_subdir.mk, [])],
+                    'targets': [assets_dest_subdir.path],
+                    'uptodate': [True],
+                }
+
+            for filename in filenames:
+                assets_src_file = File(os.path.join(dirpath, filename))
+                assets_dest_file = File(os.path.join(assets_dest.path, op.relpath(dirpath, assets_src.path), filename))
+                yield {
+                    # debug
+                    # 'title': lambda task: f'copy D: {task.file_dep}, CH: {task.dep_changed} > {task.targets}',
+                    'basename': f'copy asset {assets_src_file.path} -> {assets_dest_file.path}',
+                    'file_dep': [assets_src_file.path],
+                    'actions': [
+                        (assets_src_file.cp, [assets_dest_file.path]),
+                    ],
+                    'targets': [assets_dest_file.path],
+                }
 
     def copy_includes_tasks(self):
         for pattern in self.config['include']:
@@ -383,14 +410,20 @@ class Peppermynt(object):
                     src_path = Directory(path)
                     yield {
                         'basename': f'copy include directory {src_path.path}',
-                        'actions': [(src_path.cp, [dest, False])],
+                        'actions': [
+                            (src_path.cp, [dest, False]),
+                        ],
                         'targets': [dest],
+                        'uptodate': [True],
                     }
                 elif op.isfile(path):
-                    src_path = File(path)
+                    src_file = File(path)
                     yield {
-                        'basename': f'copy include file {src_path.path}',
-                        'actions': [(src_path.cp, [dest])],
+                        'basename': f'copy include file {src_file.path}',
+                        'file_dep': [src_file.path],
+                        'actions': [
+                            (src_file.cp, [dest])
+                        ],
                         'targets': [dest],
                     }
 

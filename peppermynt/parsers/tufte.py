@@ -25,7 +25,7 @@ class Parser(_Parser):
         ]
 
         self.flags = [
-            '--katex',
+            '--mathjax',
             '--section-divs',
             '--highlight-style=pygments',
         ] + list(chain.from_iterable(['--css', css_style] for css_style in self.css_styles))

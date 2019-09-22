@@ -42,7 +42,8 @@ class PeppermyntTaskLoader(TaskLoader):
 
     def load_tasks(self, cmd, opt_values, pos_args):
         doit_config = {
-            'reporter': ConsoleReporter,
-            'outfile': sys.stderr,
+            'action_string_formatting': 'both',
+            'reporter': ExecutedOnlyReporter,
+            'outfile': sys.stdout,
         }
         return generate_tasks('render_site', self.peppermynt.generate_tasks()), doit_config
