@@ -77,9 +77,8 @@ class Peppermynt(object):
     def __init__(self, args=None):
         self._writer = None
 
-        self.config, self.posts, self.containers = None, None, None
+        self.content = None
         self.data = {}
-        self.pages = None
 
         self.src, self.dest, self.temp = None, None, None
 
@@ -314,25 +313,27 @@ class Peppermynt(object):
 
         self.writer.register({'site': self.config})
 
+    def _init_parse(self):
+        Timer.start()
+        logger.info('>> Parsing frontmatter')
 
-    def _parse(self):
-        logger.info('>> Parsing')
+        self.content = self.reader.init_parse()
 
-        self.posts, self.containers, self.pages = self.reader.parse()
-
-        self.data['posts'] = self.posts.data
+        self.data['posts'] = self.content.posts.data
         self.data['containers'] = {}
 
-        for name, container in self.containers.items():
+        for name, container in self.content.containers.items():
             self.data['containers'][name] = container.data
+
+        logger.info('<< Completed frontmatter parsing in %.3fs', Timer.stop())
 
     def _render(self):
         logger.info('>> Rendering')
 
         self.writer.register(self.data)
 
-        for i, page in enumerate(self.pages):
-            self.pages[i] = self.writer.render(*page)
+        for i, page in enumerate(self.content.pages):
+            self.content.pages[i] = self.writer.render(*page)
 
     def create_dirs_tasks(self):
         if self.dest.exists:
@@ -353,18 +354,68 @@ class Peppermynt(object):
                 'targets': [self.dest.path]
             }
 
-    def render_to_file(self, *args):
+    def parse_item_action(self, item):
+        item = self.reader.parse_item(self.config, item)
+        return item['content']
+
+    def parse_task(self, page):
+        template, data, url = page
+        if data and 'item' in data:
+            return {
+                'basename': f'parse {page.identifier()}',
+                'file_dep': [str(data['item'])],
+                'actions': [(self.parse_item_action, (data['item'], ))],
+            }
+
+        return {
+            'basename': f'parse {page.identifier()}',
+            'actions': ['true'],
+        }
+
+    def render_to_file_action(self, *args):
         out_file = self.writer.render(*args)
         out_file.mk()
 
     def render_task(self, page):
-        template, _data, url = page
         return {
-            'basename': f'render {url or template}',
-            # 'file_dep': [page],
-            'actions': [(self.render_to_file, page)],
+            'basename': f'render {page.identifier()}',
+            'task_dep': [f'parse {page.identifier()}'],
+            'actions': [(self.render_to_file_action, tuple(page))],
             'targets': [self.writer.render_path(*page)],
         }
+
+    def read_content_action(self, item, render_path):
+        item.read_content(render_path)
+
+    def read_content_task(self, page):
+        template, data, url = page
+        if data and 'item' in data:
+            return {
+                'basename': f'read content for {page.identifier()}',
+                'actions': [(self.read_content_action, (data['item'], self.writer.render_path(*page)))],
+                'file_dep': [self.writer.render_path(*page)],
+                'uptodate': [False],
+            }
+
+        return {
+            'basename': f'read content for {url or template}',
+            'actions': ['true'],
+        }
+
+    def render_feed_task(self, feed):
+        import ipdb; ipdb.sset_trace()
+        return {
+            'basename': f'render {feed.identifier()}',
+            'task_dep': [f'read content for {post.identifier()}' for post in self.content.posts.pages],
+            'actions': [(self.render_to_file_action, tuple(feed))],
+            'targets': [self.writer.render_path(*feed)],
+        }
+
+    def mk_asset_dir_action(self, asset_dir):
+        asset_dir.mk()
+
+    def cp_file_action(self, src_file, dest_file_path):
+        src_file.cp(dest_file_path)
 
     def copy_assets_tasks(self):
         assets_src = Directory(normpath(self.src.path, '_assets'))
@@ -372,17 +423,22 @@ class Peppermynt(object):
 
         yield {
             'basename': f'make root asset directory {assets_dest.path}',
-            'actions': [(assets_dest.mk, [])],
+            'actions': [(self.mk_asset_dir_action, (assets_dest, ))],
             'targets': [assets_dest.path],
             'uptodate': [True],
         }
 
-        for (dirpath, dirnames, filenames) in os.walk(assets_src.path):
+        for (dirpath, dirnames, filenames) in os.walk(assets_src.path, True):
+            if Directory(dirpath).should_ignore():
+                continue
+           
             for dirname in dirnames:
                 assets_dest_subdir = Directory(os.path.join(assets_dest.path, op.relpath(dirpath, assets_src.path), dirname))
+                if assets_dest_subdir.should_ignore():
+                    continue
                 yield {
                     'basename': f'make asset subdirectory {assets_dest_subdir.path}',
-                    'actions': [(assets_dest_subdir.mk, [])],
+                    'actions': [(self.mk_asset_dir_action, (assets_dest_subdir, ))],
                     'targets': [assets_dest_subdir.path],
                     'uptodate': [True],
                 }
@@ -390,16 +446,20 @@ class Peppermynt(object):
             for filename in filenames:
                 assets_src_file = File(os.path.join(dirpath, filename))
                 assets_dest_file = File(os.path.join(assets_dest.path, op.relpath(dirpath, assets_src.path), filename))
+                if assets_src_file.should_ignore():
+                    continue
                 yield {
                     # debug
                     # 'title': lambda task: f'copy D: {task.file_dep}, CH: {task.dep_changed} > {task.targets}',
                     'basename': f'copy asset {assets_src_file.path} -> {assets_dest_file.path}',
                     'file_dep': [assets_src_file.path],
-                    'actions': [
-                        (assets_src_file.cp, [assets_dest_file.path]),
-                    ],
+                    'actions': [(self.cp_file_action, (assets_src_file, assets_dest_file.path))],
                     'targets': [assets_dest_file.path],
+                    'verbosity': 0,
                 }
+
+    def cp_include_dir_action(self, src_dir, dest_path):
+        src_dir.cp(dest_path, True)
 
     def copy_includes_tasks(self):
         for pattern in self.config['include']:
@@ -407,39 +467,45 @@ class Peppermynt(object):
                 dest = path.replace(self.src.path, self.dest.path)
 
                 if op.isdir(path):
-                    src_path = Directory(path)
+                    src_dir = Directory(path)
+                    if src_dir.should_ignore():
+                        continue
                     yield {
                         'basename': f'copy include directory {src_path.path}',
-                        'actions': [
-                            (src_path.cp, [dest, False]),
-                        ],
+                        'actions': [(self.cp_include_dir_action, (src_dir, dest))],
                         'targets': [dest],
                         'uptodate': [True],
                     }
                 elif op.isfile(path):
                     src_file = File(path)
+                    if src_file.should_ignore():
+                        continue
                     yield {
                         'basename': f'copy include file {src_file.path}',
                         'file_dep': [src_file.path],
-                        'actions': [
-                            (src_file.cp, [dest])
-                        ],
+                        'actions': [(self.cp_file_action, (src_file, dest))],
                         'targets': [dest],
                     }
 
     def generate_tasks(self):
         self._initialize()
-        self._parse()
+        self._init_parse()
         self.writer.register(self.data)
 
         create_dirs_tasks = self.create_dirs_tasks() # this function should yield one or two things
-        render_pages_tasks = (self.render_task(page) for page in self.pages)
+        parse_pages_tasks = (self.parse_task(page) for page in self.content.pages)
+        render_pages_tasks = (self.render_task(page) for page in self.content.pages)
+        read_content_tasks = (self.read_content_task(page) for page in self.content.pages)
+        render_feeds_tasks = (self.render_feed_task(feed) for feed in self.content.feeds)
         copy_assets_tasks = self.copy_assets_tasks()
         copy_includes_tasks = self.copy_includes_tasks()
 
         task_chain = chain(
             create_dirs_tasks,
+            parse_pages_tasks,
             render_pages_tasks,
+            read_content_tasks,
+            render_feeds_tasks,
             copy_assets_tasks,
             copy_includes_tasks
         )
@@ -451,10 +517,8 @@ class Peppermynt(object):
         self._writer = None
 
         self.config = None
-        self.posts = None
-        self.containers = None
+        self.content = None
         self.data.clear()
-        self.pages = None
 
         self.generate_tasks()
 

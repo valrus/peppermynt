@@ -21,14 +21,16 @@ logger = get_logger('mynt')
 class Directory(object):
     def __init__(self, path):
         self.path = abspath(path)
+        self.name, _ = op.splitext(op.basename(self.path))
 
         if self.is_root:
             raise FileSystemException('Root is not an acceptible directory.')
 
+    def should_ignore(self):
+        return self.name.startswith(('.', '_'))
 
     def _ignored(self, path, names):
         return [name for name in names if name.startswith(('.', '_'))]
-
 
     def cp(self, dest, ignore = True):
         if self.exists:
@@ -144,6 +146,9 @@ class File(object):
         self.root = Directory(op.dirname(self.path))
         self.name, self.extension = op.splitext(op.basename(self.path))
         self.content = content
+
+    def should_ignore(self):
+        return self.name.startswith(('.', '_'))
 
     def cp(self, dest):
         if self.exists:

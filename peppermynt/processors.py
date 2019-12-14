@@ -13,13 +13,29 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers import get_lexer_by_name
 from pygments.util import ClassNotFound
 
-from peppermynt.containers import Config, Container, Item, Items, Posts
+from peppermynt.containers import Config, Container, Item, Items, Posts, SiteContent, Page
 from peppermynt.exceptions import ConfigException, ContentException, ParserException, RendererException
 from peppermynt.fs import File
 from peppermynt.utils import get_logger, normpath, Timer, unescape, Url
 
 
 logger = get_logger('peppermynt')
+
+
+def _get_output_path(dest_path, url):
+    parts = [dest_path] + url.split('/')
+
+    if url.endswith('/'):
+        parts.append('index.html')
+
+    path = normpath(*parts)
+
+    if op.commonprefix((dest_path, path)) != dest_path:
+        raise ConfigException('Invalid URL.',
+            'url: {0}'.format(url),
+            'path traversal is not allowed')
+
+    return path
 
 
 class Reader(object):
@@ -72,13 +88,13 @@ class Reader(object):
 
         return datetime.strptime('-'.join(d), '%Y-%m-%d-%H-%M')
 
-    def _get_parser(self, f, parser = None):
+    def _get_parser(self, item, parser = None):
         if not parser:
             try:
-                parser = self._extensions[f.extension][0]
+                parser = self._extensions[item.extension()][0]
             except KeyError:
-                raise ParserException('No parser found that accepts \'{0}\' files.'.format(f.extension),
-                    'src: {0}'.format(f.path))
+                raise ParserException('No parser found that accepts \'{0}\' files.'.format(item.extension()),
+                    'src: {0}'.format(item))
 
         if parser in self._cache:
             return self._cache[parser]
@@ -99,15 +115,11 @@ class Reader(object):
 
     def _parse_filename(self, f):
         date, text = re.match(r'(?:(\d{4}(?:-\d{2}-\d{2}){1,2})-)?(.+)', f.name).groups()
+        return (text, self._get_date(f.mtime, date))
 
-        return (
-            text,
-            self._get_date(f.mtime, date)
-        )
-
-    def _parse_container(self, container):
+    def _init_container(self, container):
         for f in container.path:
-            container.add(self._parse_item(container.config, f))
+            container.add(self._init_item(container.config, f))
 
         container.sort()
         container.tag()
@@ -115,11 +127,42 @@ class Reader(object):
 
         return container
 
-    def _parse_item(self, config, f, simple = False):
+    def _init_item(self, config, f, simple = False):
         Timer.start()
+
+        frontmatter, bodymatter = self._parse_item_frontmatter(f)
 
         item = Item(f.path)
 
+        text, date = self._parse_filename(f)
+        item['date'] = date.strftime(self.site['date_format'])
+        item['timestamp'] = timegm(date.utctimetuple())
+
+        if simple:
+            item['url'] = Url.from_path(f.root.path.replace(self.src.path, ''), text)
+        else:
+            item['tags'] = []
+            item['url'] = Url.from_format(config['url'], text, date, frontmatter)
+        item['dest'] = _get_output_path(self.dest.path, item['url'])
+
+        item.update(frontmatter)
+        item['raw_content'] = bodymatter
+
+        return item
+
+    def parse_item(self, config, item, simple = False):
+        bodymatter = item.pop('raw_content')
+        parser = self._get_parser(item, item.get('parser', config.get('parser', None)))
+        content = parser.parse(self._writer.from_string(bodymatter, item))
+        item['content'] = content
+        if not simple:
+            item['excerpt'] = re.search(r'\A.*?(?:<p>(.+?)</p>)?', content, re.M | re.S).group(1)
+
+        logger.debug('..  (%.3fs) %s', Timer.stop(), str(item).replace(self.src.path, ''))
+
+        return item
+
+    def _parse_item_frontmatter(self, f):
         try:
             frontmatter, bodymatter = re.search(r'\A---\s+^(.+?)$\s+---\s*(.*)\Z', f.content, re.M | re.S).groups()
             frontmatter = Config(frontmatter)
@@ -139,49 +182,33 @@ class Reader(object):
 
         frontmatter.pop('url', None)
 
-        parser = self._get_parser(f, frontmatter.get('parser', config.get('parser', None)))
+        return frontmatter, bodymatter
 
-        text, date = self._parse_filename(f)
-        content = parser.parse(self._writer.from_string(bodymatter, frontmatter))
-
-        item['content'] = content
-        item['date'] = date.strftime(self.site['date_format'])
-        item['timestamp'] = timegm(date.utctimetuple())
-
-        if simple:
-            item['url'] = Url.from_path(f.root.path.replace(self.src.path, ''), text)
-        else:
-            item['excerpt'] = re.search(r'\A.*?(?:<p>(.+?)</p>)?', content, re.M | re.S).group(1)
-            item['tags'] = []
-            item['url'] = Url.from_format(config['url'], text, date, frontmatter)
-
-        item.update(frontmatter)
-
-        logger.debug('..  (%.3fs) %s', Timer.stop(), f.path.replace(self.src.path, ''))
-
-        return item
-
-    def parse(self):
-        posts = self._parse_container(Posts(self.src, self.site))
+    def init_parse(self):
+        posts = self._init_container(Posts(self.src, self.site))
         containers = {}
         miscellany = Container('miscellany', self.src, None)
         pages = posts.pages
+        feeds = []
 
         for name, config in self.site['containers'].items():
-            container = self._parse_container(Items(name, self.src, config))
+            container = self._init_container(Items(name, self.src, config))
 
             containers[name] = container
             pages.extend(container.pages)
 
         for f in miscellany.path:
             if f.extension in self._extensions:
-                miscellany.add(self._parse_item(miscellany.config, f, True))
-            elif f.extension in ('.html', '.htm', '.xml'):
-                pages.append((f.path.replace(self.src.path, ''), None, None))
+                miscellany.add(self._init_item(miscellany.config, f, True))
+            elif f.extension == '.xml':
+                # Assume for now that the only xml files are feeds
+                feeds.append(Page(f.path.replace(self.src.path, ''), None, None))
+            elif f.extension in ('.html', '.htm'):
+                pages.append(Page(f.path.replace(self.src.path, ''), None, None))
 
         pages.extend(miscellany.pages)
 
-        return (posts, containers, pages)
+        return SiteContent(posts, containers, pages, feeds)
 
 
 class Writer(object):
@@ -192,21 +219,6 @@ class Writer(object):
         self.site = site
 
         self._renderer = self._get_renderer()
-
-    def _get_path(self, url):
-        parts = [self.dest.path] + url.split('/')
-
-        if url.endswith('/'):
-            parts.append('index.html')
-
-        path = normpath(*parts)
-
-        if op.commonprefix((self.dest.path, path)) != self.dest.path:
-            raise ConfigException('Invalid URL.',
-                'url: {0}'.format(url),
-                'path traversal is not allowed')
-
-        return path
 
     def _get_renderer(self):
         renderer = self.site['renderer']
@@ -246,7 +258,7 @@ class Writer(object):
         self._renderer.register(data)
 
     def render_path(self, template, _data = None, url = None):
-        return self._get_path(url or template)
+        return _get_output_path(self.dest.path, url or template)
 
     def render(self, template, data = None, url = None):
         path = self.render_path(template, data, url)

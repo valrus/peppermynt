@@ -3,7 +3,10 @@
 from collections import OrderedDict
 from datetime import datetime
 from itertools import tee, chain
+from pathlib import Path
+from collections import namedtuple
 
+import os.path as op
 import yaml
 
 from peppermynt.exceptions import ConfigException
@@ -27,6 +30,10 @@ class Config(dict):
         except:
             logger.debug('..  config file is empty')
             pass
+
+
+class SiteContent(namedtuple('SiteContentBase', 'posts containers pages feeds')):
+    pass
 
 
 class Data(object):
@@ -55,6 +62,9 @@ class Data(object):
 
 
 class Item(dict):
+    # Typical keys:
+    # 'date', 'timestamp', 'tags', 'url', 'layout', 'title', 'summary', 'prev', 'next'
+    # 'raw_content' is the markdown input; it gets replaced with 'content' when the item is parsed
     def __init__(self, src, *args, **kwargs):
         super(Item, self).__init__(*args, **kwargs)
 
@@ -62,6 +72,15 @@ class Item(dict):
 
     def __str__(self):
         return self.__src
+
+    def extension(self):
+        return op.splitext(op.basename(self.__src))[1]
+
+    def read_content(self, output_file_path):
+        if not self.get('content', None):
+            with open(output_file_path, 'r', encoding='utf-8') as output_file:
+                self['content'] = output_file.read().strip()
+        return self['content']
 
 
 class Tag(object):
@@ -74,6 +93,11 @@ class Tag(object):
 
     def __iter__(self):
         return self.items.__iter__()
+
+
+class Page(namedtuple('PageBase', 'template data url')):
+    def identifier(self):
+        return self.url or self.template
 
 
 class Container(object):
@@ -92,7 +116,7 @@ class Container(object):
             if item['layout'] is None:
                 continue
 
-            pages.append((item['layout'], {'item': item}, item['url']))
+            pages.append(Page(item['layout'], {'item': item}, item['url']))
 
         return pages
 
@@ -159,7 +183,7 @@ class Items(Container):
 
         if self.config['archive_layout'] and self.archives:
             for archive in self.archives.values():
-                pages.append((
+                pages.append(Page(
                     self.config['archive_layout'],
                     {'archive': archive},
                     archive['url']
@@ -167,7 +191,7 @@ class Items(Container):
 
         if self.config['tag_layout'] and self.tags:
             for tag in self.tags.values():
-                pages.append((
+                pages.append(Page(
                     self.config['tag_layout'],
                     {'tag': tag},
                     tag.url
@@ -245,7 +269,6 @@ class Posts(Items):
         super(Posts, self).__init__('posts', src, self._get_config(site))
 
         self.path = Directory(normpath(src.path, '_posts'))
-
 
     def _get_config(self, site):
         config = {
