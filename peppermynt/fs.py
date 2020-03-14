@@ -163,17 +163,16 @@ class File(object):
                 shutil.copyfile(self.path, dest.path)
 
     def mk(self):
-        if not self.exists:
-            if not self.root.exists:
-                self.root.mk()
+        if not self.root.exists:
+            self.root.mk()
 
-            logger.debug('..  mk: %s', self.path)
+        logger.debug('..  mk: %s', self.path)
 
-            with open(self.path, 'w', encoding = 'utf-8') as f:
-                if self.content is None:
-                    self.content = ''
+        with open(self.path, 'w', encoding = 'utf-8') as f:
+            if self.content is None:
+                self.content = ''
 
-                f.write(self.content)
+            f.write(self.content)
 
     def rm(self):
         if self.exists:

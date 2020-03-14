@@ -11,7 +11,7 @@ import yaml
 
 from peppermynt.exceptions import ConfigException
 from peppermynt.fs import Directory
-from peppermynt.utils import get_logger, normpath, Url
+from peppermynt.utils import get_logger, dest_path, normpath, Url
 
 
 yaml.add_constructor('tag:yaml.org,2002:str', lambda loader, node: loader.construct_scalar(node))
@@ -72,6 +72,9 @@ class Item(dict):
 
     def __str__(self):
         return self.__src
+
+    def output_path(self, dest_root):
+        return dest_path(dest_root, self['url'])
 
     def extension(self):
         return op.splitext(op.basename(self.__src))[1]

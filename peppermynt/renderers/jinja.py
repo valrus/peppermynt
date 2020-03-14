@@ -97,10 +97,7 @@ class Renderer(_Renderer):
         except TemplateNotFound:
             raise RendererException('Template not found.')
 
-        try:
-            return template.render(**data)
-        except TypeError:
-            import ipdb; ipdb.sset_trace()
+        return template.render(**data)
 
     def setup(self):
         self.config.update(self.options)

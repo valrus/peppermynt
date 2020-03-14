@@ -69,6 +69,22 @@ def unescape(html):
     return html
 
 
+def dest_path(dest_root, url):
+    parts = [dest_root] + url.split('/')
+
+    if url.endswith('/'):
+        parts.append('index.html')
+
+    path = normpath(*parts)
+
+    if op.commonprefix((dest_root, path)) != dest_root:
+        raise ConfigException('Invalid URL.',
+            'url: {0}'.format(url),
+            'path traversal is not allowed')
+
+    return path
+
+
 class Timer(object):
     _start = []
 

@@ -16,26 +16,10 @@ from pygments.util import ClassNotFound
 from peppermynt.containers import Config, Container, Item, Items, Posts, SiteContent, Page
 from peppermynt.exceptions import ConfigException, ContentException, ParserException, RendererException
 from peppermynt.fs import File
-from peppermynt.utils import get_logger, normpath, Timer, unescape, Url
+from peppermynt.utils import get_logger, dest_path, Timer, unescape, Url
 
 
 logger = get_logger('peppermynt')
-
-
-def _get_output_path(dest_path, url):
-    parts = [dest_path] + url.split('/')
-
-    if url.endswith('/'):
-        parts.append('index.html')
-
-    path = normpath(*parts)
-
-    if op.commonprefix((dest_path, path)) != dest_path:
-        raise ConfigException('Invalid URL.',
-            'url: {0}'.format(url),
-            'path traversal is not allowed')
-
-    return path
 
 
 class Reader(object):
@@ -143,7 +127,7 @@ class Reader(object):
         else:
             item['tags'] = []
             item['url'] = Url.from_format(config['url'], text, date, frontmatter)
-        item['dest'] = _get_output_path(self.dest.path, item['url'])
+        item['dest'] = dest_path(self.dest.path, item['url'])
 
         item.update(frontmatter)
         item['raw_content'] = bodymatter
@@ -258,7 +242,7 @@ class Writer(object):
         self._renderer.register(data)
 
     def render_path(self, template, _data = None, url = None):
-        return _get_output_path(self.dest.path, url or template)
+        return dest_path(self.dest.path, url or template)
 
     def render(self, template, data = None, url = None):
         path = self.render_path(template, data, url)

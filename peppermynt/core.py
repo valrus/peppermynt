@@ -39,6 +39,7 @@ class DoitPeppermynt(DoitMain):
         """Initialize DoitPeppermynt."""
         kwargs.setdefault('extra_config', {})
         kwargs['extra_config']['PEPPERMYNT'] = { 'peppermynt': peppermynt }
+        kwargs['extra_config']['GLOBAL'] = {'verbosity': 2 }
         super().__init__(*args, **kwargs)
         peppermynt.doit = self
         self.task_loader = self.TASK_LOADER(peppermynt)
@@ -204,6 +205,11 @@ class Peppermynt(object):
 
         watch.set_defaults(doit_cmd='watch')
 
+        for cmd in DoitMain.DOIT_CMDS:
+            cmd_name = cmd.__name__.lower()
+            doit_cmd = sub.add_parser(cmd_name)
+            doit_cmd.set_defaults(doit_cmd=cmd_name)
+
         peppermynt_args, doit_args = parser.parse_known_args(args)
 
         doit_args = [ peppermynt_args.doit_cmd ] + doit_args
@@ -297,21 +303,22 @@ class Peppermynt(object):
         return url
 
     def _initialize(self):
-        self.src = Directory(self.args.src)
-        self.dest = Directory(self.args.dest)
-        self.temp = Directory(op.join(gettempdir(), 'peppermynt'))
+        if self.args.doit_cmd in ['gen', 'generate', 'watch']:
+            self.src = Directory(self.args.src)
+            self.dest = Directory(self.args.dest)
+            self.temp = Directory(op.join(gettempdir(), 'peppermynt'))
 
-        logger.debug('>> Initializing\n..  src:  %s\n..  dest: %s', self.src.path, self.dest.path)
+            logger.debug('>> Initializing\n..  src:  %s\n..  dest: %s', self.src.path, self.dest.path)
 
-        self.update_config()
+            self.update_config()
 
-        if self.config['locale']:
-            try:
-                locale.setlocale(locale.LC_ALL, (self.config['locale'], 'utf-8'))
-            except locale.Error:
-                raise ConfigException('Locale not available.', 'run `locale -a` to see available locales')
+            if self.config['locale']:
+                try:
+                    locale.setlocale(locale.LC_ALL, (self.config['locale'], 'utf-8'))
+                except locale.Error:
+                    raise ConfigException('Locale not available.', 'run `locale -a` to see available locales')
 
-        self.writer.register({'site': self.config})
+            self.writer.register({'site': self.config})
 
     def _init_parse(self):
         Timer.start()
@@ -359,12 +366,13 @@ class Peppermynt(object):
         return item['content']
 
     def parse_task(self, page):
-        template, data, url = page
+        _template, data, _url = page
         if data and 'item' in data:
             return {
                 'basename': f'parse {page.identifier()}',
                 'file_dep': [str(data['item'])],
                 'actions': [(self.parse_item_action, (data['item'], ))],
+                'uptodate': [not self._fresh()]
             }
 
         return {
@@ -376,45 +384,74 @@ class Peppermynt(object):
         out_file = self.writer.render(*args)
         out_file.mk()
 
+    def _new_adjacent_item(self, adjacent_item):
+        return False if adjacent_item is None else not File(adjacent_item.output_path(self.dest.path)).exists
+
     def render_task(self, page):
-        return {
+        _template, data, _url = page
+        common_params = {
             'basename': f'render {page.identifier()}',
-            'task_dep': [f'parse {page.identifier()}'],
-            'actions': [(self.render_to_file_action, tuple(page))],
             'targets': [self.writer.render_path(*page)],
         }
+        if data and 'item' in data:
+            return {
+                'file_dep': [str(data['item'])],
+                'actions': [
+                    (self.parse_item_action, (data['item'], )),
+                    (self.render_to_file_action, tuple(page)),
+                ],
+                # make sure we re-render if we've added a new post before or after this one,
+                # to create the prev/next links
+                'uptodate': [
+                    not self._new_adjacent_item(data['item'].get('next')),
+                    not self._new_adjacent_item(data['item'].get('prev')),
+                ],
+                **common_params
+            }
 
-    def read_content_action(self, item, render_path):
+        return {
+            'actions': [(self.render_to_file_action, tuple(page))],
+            **common_params
+        }
+
+    @staticmethod
+    def read_content_action(item, render_path):
         item.read_content(render_path)
 
     def read_content_task(self, page):
-        template, data, url = page
+        _template, data, _url = page
         if data and 'item' in data:
             return {
                 'basename': f'read content for {page.identifier()}',
-                'actions': [(self.read_content_action, (data['item'], self.writer.render_path(*page)))],
+                'actions': [
+                    (self.read_content_action, (data['item'], self.writer.render_path(*page)))
+                ],
                 'file_dep': [self.writer.render_path(*page)],
                 'uptodate': [False],
             }
 
         return {
-            'basename': f'read content for {url or template}',
+            'basename': f'read content for {page.identifier()}',
             'actions': ['true'],
         }
 
     def render_feed_task(self, feed):
-        import ipdb; ipdb.sset_trace()
         return {
             'basename': f'render {feed.identifier()}',
-            'task_dep': [f'read content for {post.identifier()}' for post in self.content.posts.pages],
+            'task_dep': [
+                f'read content for {post.identifier()}'
+                for post in self.content.posts.pages
+            ],
             'actions': [(self.render_to_file_action, tuple(feed))],
             'targets': [self.writer.render_path(*feed)],
         }
 
-    def mk_asset_dir_action(self, asset_dir):
+    @staticmethod
+    def mk_asset_dir_action(asset_dir):
         asset_dir.mk()
 
-    def cp_file_action(self, src_file, dest_file_path):
+    @staticmethod
+    def cp_file_action(src_file, dest_file_path):
         src_file.cp(dest_file_path)
 
     def copy_assets_tasks(self):
@@ -433,7 +470,13 @@ class Peppermynt(object):
                 continue
            
             for dirname in dirnames:
-                assets_dest_subdir = Directory(os.path.join(assets_dest.path, op.relpath(dirpath, assets_src.path), dirname))
+                assets_dest_subdir = Directory(
+                    os.path.join(
+                        assets_dest.path,
+                        op.relpath(dirpath, assets_src.path),
+                        dirname
+                    )
+                )
                 if assets_dest_subdir.should_ignore():
                     continue
                 yield {
@@ -445,7 +488,13 @@ class Peppermynt(object):
 
             for filename in filenames:
                 assets_src_file = File(os.path.join(dirpath, filename))
-                assets_dest_file = File(os.path.join(assets_dest.path, op.relpath(dirpath, assets_src.path), filename))
+                assets_dest_file = File(
+                    os.path.join(
+                        assets_dest.path,
+                        op.relpath(dirpath, assets_src.path),
+                        filename
+                    )
+                )
                 if assets_src_file.should_ignore():
                     continue
                 yield {
@@ -458,7 +507,8 @@ class Peppermynt(object):
                     'verbosity': 0,
                 }
 
-    def cp_include_dir_action(self, src_dir, dest_path):
+    @staticmethod
+    def cp_include_dir_action(src_dir, dest_path):
         src_dir.cp(dest_path, True)
 
     def copy_includes_tasks(self):
@@ -493,7 +543,7 @@ class Peppermynt(object):
         self.writer.register(self.data)
 
         create_dirs_tasks = self.create_dirs_tasks() # this function should yield one or two things
-        parse_pages_tasks = (self.parse_task(page) for page in self.content.pages)
+        # parse_pages_tasks = (self.parse_task(page) for page in self.content.pages)
         render_pages_tasks = (self.render_task(page) for page in self.content.pages)
         read_content_tasks = (self.read_content_task(page) for page in self.content.pages)
         render_feeds_tasks = (self.render_feed_task(feed) for feed in self.content.feeds)
@@ -502,7 +552,7 @@ class Peppermynt(object):
 
         task_chain = chain(
             create_dirs_tasks,
-            parse_pages_tasks,
+            # parse_pages_tasks,
             render_pages_tasks,
             read_content_tasks,
             render_feeds_tasks,
@@ -512,6 +562,9 @@ class Peppermynt(object):
 
         # doit expects specifically a generator, of which an itertools chain isn't one
         return (task for task in task_chain)
+
+    def _fresh(self):
+        return self.args.force or self.args.clean
 
     def regenerate(self):
         self._writer = None
@@ -529,7 +582,7 @@ class Peppermynt(object):
             raise OptionException('Source must exist.')
         elif self.src == self.dest:
             raise OptionException('Source and destination must differ.')
-        elif self.dest.exists and not (self.args.force or self.args.clean):
+        elif self.dest.exists and not self._fresh():
             raise OptionException('Destination already exists.',
                 'the -c or -f flag must be passed to force generation by deleting or emptying the destination')
 
@@ -545,7 +598,7 @@ class Peppermynt(object):
 
         if not self.src.exists:
             raise OptionException('Theme not found.')
-        elif self.dest.exists and not self.args.force:
+        elif self.dest.exists and not self._fresh():
             raise OptionException('Destination already exists.',
                 'the -f flag must be passed to force initialization by deleting the destination')
 
