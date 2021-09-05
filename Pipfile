@@ -1,0 +1,47 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+appnope = "*"
+argh = "*"
+astroid = "*"
+cloudpickle = "*"
+decorator = "*"
+doit = ">=0.33.1"
+gnureadline = "*"
+gunicorn = "*"
+hoep = "*"
+lazy-object-proxy = "*"
+mccabe = "*"
+parso = "*"
+pathtools = "*"
+pexpect = "*"
+pickleshare = "*"
+prompt-toolkit = "*"
+ptyprocess = "*"
+pypandoc = "*"
+simplegeneric = "*"
+six = "*"
+traitlets = "*"
+watchdog = "*"
+wcwidth = "*"
+wrapt = "*"
+ipython_genutils = "*"
+Jinja2 = ">=2.10"
+MacFSEvents = "*"
+MarkupSafe = "*"
+Pygments = "*"
+PyYAML = "*"
+
+[dev-packages]
+ipdb = "*"
+ipython = "*"
+isort = "*"
+jedi = "*"
+pylint = "*"
+peppermynt = {editable = true, path = "."}
+
+[requires]
+python_version = "3.9.1"
