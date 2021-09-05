@@ -21,14 +21,16 @@ logger = get_logger('mynt')
 class Directory(object):
     def __init__(self, path):
         self.path = abspath(path)
+        self.name, _ = op.splitext(op.basename(self.path))
 
         if self.is_root:
             raise FileSystemException('Root is not an acceptible directory.')
 
+    def should_ignore(self):
+        return self.name.startswith(('.', '_'))
 
     def _ignored(self, path, names):
         return [name for name in names if name.startswith(('.', '_'))]
-
 
     def cp(self, dest, ignore = True):
         if self.exists:
@@ -101,11 +103,11 @@ class Directory(object):
     def __unicode__(self):
         return self.path
 
+
 class EventHandler(FileSystemEventHandler):
     def __init__(self, src, callback):
         self._src = src
         self._callback = callback
-
 
     def _regenerate(self, path):
         path = path.replace(self._src, '')
@@ -145,6 +147,8 @@ class File(object):
         self.name, self.extension = op.splitext(op.basename(self.path))
         self.content = content
 
+    def should_ignore(self):
+        return self.name.startswith(('.', '_'))
 
     def cp(self, dest):
         if self.exists:
@@ -159,17 +163,16 @@ class File(object):
                 shutil.copyfile(self.path, dest.path)
 
     def mk(self):
-        if not self.exists:
-            if not self.root.exists:
-                self.root.mk()
+        if not self.root.exists:
+            self.root.mk()
 
-            logger.debug('..  mk: %s', self.path)
+        logger.debug('..  mk: %s', self.path)
 
-            with open(self.path, 'w', encoding = 'utf-8') as f:
-                if self.content is None:
-                    self.content = ''
+        with open(self.path, 'w', encoding = 'utf-8') as f:
+            if self.content is None:
+                self.content = ''
 
-                f.write(self.content)
+            f.write(self.content)
 
     def rm(self):
         if self.exists:

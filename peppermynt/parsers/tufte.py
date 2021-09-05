@@ -25,7 +25,7 @@ class Parser(_Parser):
         ]
 
         self.flags = [
-            '--katex',
+            '--mathjax',
             '--section-divs',
             '--mathjax',
             '--highlight-style=pygments',

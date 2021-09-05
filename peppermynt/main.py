@@ -4,13 +4,14 @@ from __future__ import print_function, unicode_literals
 
 import sys
 
-from peppermynt.core import Peppermynt
+from peppermynt.core import Peppermynt, DoitPeppermynt
 from peppermynt.exceptions import PeppermyntException
 
 
 def main():
     try:
-        Peppermynt()
+        peppermynt = Peppermynt(args=sys.argv[1:])
+        DoitPeppermynt(peppermynt).run(peppermynt.doit_args)
     except PeppermyntException as e:
         print(e)
 

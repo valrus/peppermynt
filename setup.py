@@ -36,6 +36,7 @@ Dependencies
 + `watchdog`_
 + `pypandoc`_
 + `pandoc-sidenote`_
++ `doit`_
 
 
 Support
@@ -52,6 +53,7 @@ If you run into any issues or have any questions, open an `issue`_.
 .. _watchdog: http://packages.python.org/watchdog/
 .. _pypandoc: https://github.com/bebraw/pypandoc
 .. _pandoc-sidenote: https://github.com/jez/pandoc-sidenote
+.. _doit: http://pydoit.org/
 '''
 from setuptools import find_packages, setup
 
@@ -85,7 +87,8 @@ setup(
         'Pygments',
         'PyYAML',
         'watchdog',
-        'pypandoc'
+        'pypandoc',
+        'doit'
     ],
     classifiers = [
         'Development Status :: 4 - Beta',

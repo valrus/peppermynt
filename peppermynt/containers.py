@@ -2,12 +2,16 @@
 
 from collections import OrderedDict
 from datetime import datetime
+from itertools import tee, chain
+from pathlib import Path
+from collections import namedtuple
 
+import os.path as op
 import yaml
 
 from peppermynt.exceptions import ConfigException
 from peppermynt.fs import Directory
-from peppermynt.utils import get_logger, normpath, Url
+from peppermynt.utils import get_logger, dest_path, normpath, Url
 
 
 yaml.add_constructor('tag:yaml.org,2002:str', lambda loader, node: loader.construct_scalar(node))
@@ -28,17 +32,39 @@ class Config(dict):
             pass
 
 
+class SiteContent(namedtuple('SiteContentBase', 'posts containers pages feeds')):
+    pass
+
+
 class Data(object):
-    def __init__(self, items, archives, tags):
+    def __init__(self, *, items, archives, tags):
         self.items = items
         self.archives = archives
         self.tags = tags
 
     def __iter__(self):
-        return self.items.__iter__()
+        return self.items.values().__iter__()
+
+    def sort_items(self, key, reverse=False):
+        def sort_key(url_and_item):
+            _, item = url_and_item
+            try:
+                attribute = item.get(key, item)
+            except AttributeError:
+                attribute = getattr(item, key, item)
+
+            if isinstance(attribute, str):
+                return attribute.lower()
+
+            return attribute
+
+        self.items = OrderedDict(sorted(self.items.items(), key=sort_key, reverse=reverse))
 
 
 class Item(dict):
+    # Typical keys:
+    # 'date', 'timestamp', 'tags', 'url', 'layout', 'title', 'summary', 'prev', 'next'
+    # 'raw_content' is the markdown input; it gets replaced with 'content' when the item is parsed
     def __init__(self, src, *args, **kwargs):
         super(Item, self).__init__(*args, **kwargs)
 
@@ -46,6 +72,18 @@ class Item(dict):
 
     def __str__(self):
         return self.__src
+
+    def output_path(self, dest_root):
+        return dest_path(dest_root, self['url'])
+
+    def extension(self):
+        return op.splitext(op.basename(self.__src))[1]
+
+    def read_content(self, output_file_path):
+        if not self.get('content', None):
+            with open(output_file_path, 'r', encoding='utf-8') as output_file:
+                self['content'] = output_file.read().strip()
+        return self['content']
 
 
 class Tag(object):
@@ -60,6 +98,11 @@ class Tag(object):
         return self.items.__iter__()
 
 
+class Page(namedtuple('PageBase', 'template data url')):
+    def identifier(self):
+        return self.url or self.template
+
+
 class Container(object):
     def __init__(self, name, src, config):
         self._pages = None
@@ -67,7 +110,7 @@ class Container(object):
         self.name = name
         self.path = src
         self.config = {} if config is None else config
-        self.data = Data([], OrderedDict(), OrderedDict())
+        self.data = Data(items=OrderedDict(), archives=OrderedDict(), tags=OrderedDict())
 
     def _get_pages(self):
         pages = []
@@ -76,13 +119,12 @@ class Container(object):
             if item['layout'] is None:
                 continue
 
-            pages.append((item['layout'], {'item': item}, item['url']))
+            pages.append(Page(item['layout'], {'item': item}, item['url']))
 
         return pages
 
-
     def add(self, item):
-        self.items.append(item)
+        self.data.items[item['url']] = item
 
     def archive(self):
         pass
@@ -93,14 +135,13 @@ class Container(object):
     def tag(self):
         pass
 
-
     @property
     def archives(self):
         return self.data.archives
 
     @property
     def items(self):
-        return self.data.items
+        return list(self.data.items.values())
 
     @property
     def pages(self):
@@ -145,7 +186,7 @@ class Items(Container):
 
         if self.config['archive_layout'] and self.archives:
             for archive in self.archives.values():
-                pages.append((
+                pages.append(Page(
                     self.config['archive_layout'],
                     {'archive': archive},
                     archive['url']
@@ -153,7 +194,7 @@ class Items(Container):
 
         if self.config['tag_layout'] and self.tags:
             for tag in self.tags.values():
-                pages.append((
+                pages.append(Page(
                     self.config['tag_layout'],
                     {'tag': tag},
                     tag.url
@@ -162,33 +203,24 @@ class Items(Container):
         return pages
 
     def _relate(self):
-        for i, item in enumerate(self.items):
-            if i:
-                item['prev'] = self.items[i - 1]
+        def pairwise(iterable):
+            "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+            a, b = tee(iterable)
+            a = chain([None], a)
+            b = chain(b, [None])
+            return zip(a, b)
+
+        for item1, item2 in pairwise(self.items):
+            if self._sort_descending():
+                this_item, next_item = item1, item2
             else:
-                item['prev'] = None
+                next_item, this_item = item1, item2
 
-            try:
-                item['next'] = self.items[i + 1]
-            except IndexError:
-                item['next'] = None
+            if this_item:
+                this_item['next'] = next_item
 
-    def _sort(self, container, key, order = 'asc'):
-        reverse = self._sort_order.get(order.lower(), False)
-
-        def sort(item):
-            try:
-                attribute = item.get(key, item)
-            except AttributeError:
-                attribute = getattr(item, key, item)
-
-            if isinstance(attribute, str):
-                return attribute.lower()
-
-            return attribute
-
-        container.sort(key = sort, reverse = reverse)
-
+            if next_item:
+                next_item['prev'] = this_item
 
     def archive(self):
         self._archive(self.items, self.archives)
@@ -197,8 +229,14 @@ class Items(Container):
             self._archive(tag.items, tag.archives)
 
     def sort(self):
-        self._sort(self.items, self.config['sort'], self.config['order'])
+        self.data.sort_items(
+            key=self.config['sort'],
+            reverse=self._sort_descending()
+        )
         self._relate()
+
+    def _sort_descending(self):
+        return self._sort_order.get(self.config['order'].lower(), False)
 
     def tag(self):
         tags = []
@@ -221,8 +259,7 @@ class Items(Container):
                 OrderedDict()
             ))
 
-        self._sort(tags, 'name')
-        self._sort(tags, 'count', 'desc')
+        tags.sort(key=lambda item: (-item.count, item.name))
 
         self.tags.clear()
 
@@ -235,7 +272,6 @@ class Posts(Items):
         super(Posts, self).__init__('posts', src, self._get_config(site))
 
         self.path = Directory(normpath(src.path, '_posts'))
-
 
     def _get_config(self, site):
         config = {
