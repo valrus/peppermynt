@@ -33,10 +33,6 @@ class _PrefixLoader(PrefixLoader):
         except (KeyError, ValueError):
             raise TemplateNotFound(template)
 
-        # Gross hack to appease Jinja when handling Windows paths.
-        if op.sep != '/':
-            name = name.replace(op.sep, '/')
-
         return loader, name
 
 
@@ -123,4 +119,11 @@ class Renderer(_Renderer):
             except AttributeError:
                 langs = None
 
-            self.environment.install_gettext_translations(gettext.translation(gettext.textdomain(), normpath(self.path, '_locales'), langs, fallback = True))
+            self.environment.install_gettext_translations(
+                gettext.translation(
+                    gettext.textdomain(),
+                    normpath(self.path, '_locales'),
+                    langs,
+                    fallback = True
+                )
+            )
