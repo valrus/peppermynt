@@ -1,52 +1,35 @@
-# mynt
+# peppermynt
 
-_Another static site generator?_
+peppermynt is a fork of the [mynt] static site generator, adding a few features:
+* (Mostly) incremental builds using [pydoit]
+* [Tufte CSS], including sidenotes
+* [mathjax] for rendering math
 
-With the ever growing population of static site generators, all filling a certain need, I've yet to find one that allows the generation of anything but the simplest of blogs.
-
-That's where mynt comes in, being designed to give you all the features of a CMS with none of the often rigid implementations of those features.
-
+[mynt]: https://github.com/Anomareh/mynt
+[pydoit]: http://pydoit.org/
+[Tufte CSS]: https://edwardtufte.github.io/tufte-css/
+[mathjax]: https://www.mathjax.org/
 
 ### Install
 
-From PyPI:
-
-    $ pip install mynt
-
 Latest trunk:
 
-    $ pip install git+https://github.com/Anomareh/mynt.git
-
-
-### Getting started
-
-After installing mynt head on over and give the [quickstart][quickstart] page and [docs][docs] a read.
+    $ pip install git+https://github.com/valrus/peppermynt.git
 
 
 ### Dependencies
 
-+ [Hoep][hoep]
-+ [Jinja2][jinja]
-+ [Pygments][pygments]
-+ [PyYAML][pyyaml]
-+ [watchdog][watchdog]
+* [pandoc]
+* [pandoc-sidenote]
 
-#### Optional
-
-+ [Docutils][docutils] _(reST)_
-
+[pandoc]: https://pandoc.org/
+[pandoc-sidenote]: https://github.com/jez/pandoc-sidenote
 
 ### Support
 
-If you run into any issues or have any questions, either open an [issue][issues] or hop in #mynt on irc.freenode.net.
+If you run into any issues or have any questions, feel free to open an [issue].
+Be warned that peppermynt is currently very much a personal "it works on my machine" kind of situation,
+and I only work on it in my free time.
+So please don't expect much in the way of support.
 
-
-[docs]: http://mynt.uhnomoli.com/
-[docutils]: http://docutils.sourceforge.net/
-[hoep]: https://github.com/Anomareh/Hoep
-[issues]: https://github.com/Anomareh/mynt/issues
-[jinja]: http://jinja.pocoo.org/
-[pygments]: http://pygments.org/
-[pyyaml]: http://pyyaml.org/
-[quickstart]: http://mynt.uhnomoli.com/docs/quickstart/
-[watchdog]: http://packages.python.org/watchdog/
+[issue]: https://github.com/valrus/peppermynt/issues

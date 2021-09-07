@@ -2,41 +2,25 @@
 peppermynt
 ----------
 
-*Another static site generator?*
-
-With the ever growing population of static site generators, all filling a certain need, I've yet to find one that allows the generation of anything but the simplest of blogs.
-
-That's where mynt comes in, being designed to give you all the features of a CMS with none of the often rigid implementations of those features.
+peppermynt is a fork of the `mynt`_ static site generator, adding a few features:
++ (Mostly) incremental builds using `pydoit`_
++ `Tufte CSS`_, including sidenotes
++ `mathjax` for rendering math
 
 
 Install
 =======
-
-From PyPI::
-
-    $ pip install peppermynt
 
 Latest trunk::
 
     $ pip install git+https://github.com/valrus/peppermynt.git
 
 
-Getting started
-===============
-
-After installing mynt head on over and give the `quickstart`_ page and `docs`_ a read.
-
-
 Dependencies
 ============
 
-+ `Jinja2`_
-+ `Pygments`_
-+ `PyYAML`_
-+ `watchdog`_
-+ `pypandoc`_
++ `pandoc`_
 + `pandoc-sidenote`_
-+ `doit`_
 
 
 Support
@@ -44,16 +28,14 @@ Support
 
 If you run into any issues or have any questions, open an `issue`_.
 
-.. _docs: http://mynt.uhnomoli.com/
+.. _mynt: https://github.com/Anomareh/mynt
 .. _issue: https://github.com/valrus/peppermynt/issues
 .. _Jinja2: http://jinja.pocoo.org/
-.. _Pygments: http://pygments.org/
-.. _PyYAML: http://pyyaml.org/
-.. _quickstart: http://mynt.uhnomoli.com/docs/quickstart/
-.. _watchdog: http://packages.python.org/watchdog/
-.. _pypandoc: https://github.com/bebraw/pypandoc
+.. _pandoc: https://pandoc.org/
 .. _pandoc-sidenote: https://github.com/jez/pandoc-sidenote
-.. _doit: http://pydoit.org/
+.. _pydoit: http://pydoit.org/
+.. _Tufte CSS: https://edwardtufte.github.io/tufte-css/
+.. _mathjax: https://www.mathjax.org/
 '''
 from setuptools import find_packages, setup
 
@@ -64,8 +46,8 @@ setup(
     name = 'peppermynt',
     version = str(__version__),
     author = 'Andrew Fricke, Ian McCowan',
-    author_email = 'imccowan@gmail.com',
-    url = 'http://mynt.uhnomoli.com/',
+    author_email = 'ian@mccowan.space',
+    url = 'https://github.com/valrus/peppermynt',
     description = 'A static site generator with Tufte CSS.',
     long_description = __doc__,
     license = 'BSD',
