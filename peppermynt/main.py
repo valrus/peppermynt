@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, unicode_literals
-
 import sys
 
 from peppermynt.core import Peppermynt, DoitPeppermynt

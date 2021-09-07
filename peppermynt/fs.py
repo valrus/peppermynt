@@ -18,7 +18,7 @@ from peppermynt.utils import abspath, get_logger, normpath, Timer
 logger = get_logger('mynt')
 
 
-class Directory(object):
+class Directory:
     def __init__(self, path):
         self.path = abspath(path)
         self.name, _ = op.splitext(op.basename(self.path))
@@ -98,10 +98,7 @@ class Directory(object):
         return self.path != other
 
     def __str__(self):
-        return unicode(self).encode('utf-8')
-
-    def __unicode__(self):
-        return self.path
+        return str(self.path)
 
 
 class EventHandler(FileSystemEventHandler):
@@ -140,7 +137,7 @@ class EventHandler(FileSystemEventHandler):
         self._regenerate(event.dest_path)
 
 
-class File(object):
+class File:
     def __init__(self, path, content = None):
         self.path = abspath(path)
         self.root = Directory(op.dirname(self.path))
@@ -204,7 +201,4 @@ class File(object):
 
 
     def __str__(self):
-        return unicode(self).encode('utf-8')
-
-    def __unicode__(self):
-        return self.path
+        return str(self.path)

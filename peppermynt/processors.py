@@ -22,7 +22,7 @@ from peppermynt.utils import get_logger, dest_path, Timer, unescape, Url
 logger = get_logger('peppermynt')
 
 
-class Reader(object):
+class Reader:
     def __init__(self, src, temp, dest, site, writer):
         self._writer = writer
 
@@ -195,7 +195,7 @@ class Reader(object):
         return SiteContent(posts, containers, pages, feeds)
 
 
-class Writer(object):
+class Writer:
     def __init__(self, src, temp, dest, site):
         self.src = src
         self.temp = temp

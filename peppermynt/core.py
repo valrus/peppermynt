@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, unicode_literals
-
 from argparse import ArgumentParser
 from copy import deepcopy
 from glob import iglob
@@ -45,7 +43,7 @@ class DoitPeppermynt(DoitMain):
         self.task_loader = self.TASK_LOADER(peppermynt)
 
 
-class Peppermynt(object):
+class Peppermynt:
     defaults = {
         'archive_layout': None,
         'archives_url': '/',

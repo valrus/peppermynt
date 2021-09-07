@@ -36,7 +36,7 @@ class SiteContent(namedtuple('SiteContentBase', 'posts containers pages feeds'))
     pass
 
 
-class Data(object):
+class Data:
     def __init__(self, *, items, archives, tags):
         self.items = items
         self.archives = archives
@@ -86,7 +86,7 @@ class Item(dict):
         return self['content']
 
 
-class Tag(object):
+class Tag:
     def __init__(self, name, url, count, items, archives):
         self.name = name
         self.url = url
@@ -103,7 +103,7 @@ class Page(namedtuple('PageBase', 'template data url')):
         return self.url or self.template
 
 
-class Container(object):
+class Container:
     def __init__(self, name, src, config):
         self._pages = None
 
