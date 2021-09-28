@@ -5,6 +5,7 @@ from datetime import datetime
 from itertools import tee, chain
 from pathlib import Path
 from collections import namedtuple
+from html.parser import HTMLParser
 
 import os.path as op
 import yaml
@@ -17,6 +18,32 @@ from peppermynt.utils import get_logger, dest_path, normpath, Url
 yaml.add_constructor('tag:yaml.org,2002:str', lambda loader, node: loader.construct_scalar(node))
 
 logger = get_logger('mynt')
+
+
+class PostContentParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self._in_article = False
+        self.post_content = ''
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'article':
+            self._in_article = True
+
+    def handle_endtag(self, tag):
+        if tag == 'article':
+            self._in_article = False
+
+    def handle_data(self, data):
+        if self._in_article:
+            self.post_content += data
+
+    @classmethod
+    def extract_article_content(cls, file_path):
+        parser = cls()
+        with open(file_path, 'r', encoding='utf-8') as input_file:
+            parser.feed(input_file.read().strip())
+        return parser.post_content
 
 
 class Config(dict):
@@ -81,8 +108,7 @@ class Item(dict):
 
     def read_content(self, output_file_path):
         if not self.get('content', None):
-            with open(output_file_path, 'r', encoding='utf-8') as output_file:
-                self['content'] = output_file.read().strip()
+            self['content'] = PostContentParser.extract_article_content(output_file_path)
         return self['content']
 
 
