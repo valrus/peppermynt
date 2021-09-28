@@ -21,6 +21,12 @@ logger = get_logger('mynt')
 
 
 class PostContentParser(HTMLParser):
+    """A simple HTML parser to extract the content of the article tag.
+
+    If there is more than one article tag their contents will be concatenated,
+    but it's the nature of Peppermynt posts that they'll have one article tag
+    per post unless you're doing something really funky.
+    """
     def __init__(self):
         super().__init__()
         self._in_article = False
@@ -40,6 +46,7 @@ class PostContentParser(HTMLParser):
 
     @classmethod
     def extract_article_content(cls, file_path):
+        """Return the article tag content from a (presumably HTML) file."""
         parser = cls()
         with open(file_path, 'r', encoding='utf-8') as input_file:
             parser.feed(input_file.read().strip())
