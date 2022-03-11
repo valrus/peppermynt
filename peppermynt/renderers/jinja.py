@@ -108,6 +108,7 @@ class Renderer(_Renderer):
         self.environment.filters['date'] = self._date
         self.environment.filters['items'] = self._items
         self.environment.filters['values'] = self._values
+        self.environment.filters['slugify'] = Url.slugify
 
         self.environment.globals.update(self.globals)
         self.environment.globals['get_asset'] = self._get_asset
