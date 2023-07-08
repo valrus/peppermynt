@@ -10,6 +10,22 @@ logger = get_logger('peppermynt')
 
 
 class RequestHandler(SimpleHTTPRequestHandler):
+    # SimpleHTTPRequestHandler serves some stuff with the wrong MIME type
+    extensions_map = {
+        '': 'application/octet-stream',
+        '.manifest': 'text/cache-manifest',
+        '.html': 'text/html',
+        '.png': 'image/png',
+        '.jpg': 'image/jpg',
+        '.svg': 'image/svg+xml',
+        '.css': 'text/css',
+        '.js':'application/x-javascript',
+        '.wasm': 'application/wasm',
+        '.json': 'application/json',
+        '.xml': 'application/xml',
+        '.mp3': 'audio/mpeg',
+    }
+
     def __init__(self, request, client_address, base_url, server):
         self.base_url = base_url
 
