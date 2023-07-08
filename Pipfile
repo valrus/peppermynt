@@ -41,6 +41,7 @@ ipython = "*"
 isort = "*"
 jedi = "*"
 pylint = "*"
+python-lsp-server = "*"
 peppermynt = {editable = true, path = "."}
 
 [requires]
