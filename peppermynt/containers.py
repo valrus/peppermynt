@@ -58,12 +58,9 @@ class Config(dict):
         super(Config, self).__init__()
 
         try:
-            self.update(yaml.load(string))
+            self.update(yaml.safe_load(string))
         except yaml.YAMLError:
             raise ConfigException('Config contains unsupported YAML.')
-        except:
-            logger.debug('..  config file is empty')
-            pass
 
 
 class SiteContent(namedtuple('SiteContentBase', 'posts containers pages feeds')):

@@ -148,8 +148,8 @@ class Reader:
 
     def _parse_item_frontmatter(self, f):
         try:
-            frontmatter, bodymatter = re.search(r'\A---\s+^(.+?)$\s+---\s*(.*)\Z', f.content, re.M | re.S).groups()
-            frontmatter = Config(frontmatter)
+            frontmatter_str, bodymatter = re.search(r'\A---\s+^(.+?)$\s+---\s*(.*)\Z', f.content, re.M | re.S).groups()
+            frontmatter = Config(frontmatter_str)
         except AttributeError:
             raise ContentException('Invalid frontmatter.',
                 'src: {0}'.format(f.path),
@@ -161,7 +161,7 @@ class Reader:
 
         if 'layout' not in frontmatter:
             raise ContentException('Invalid frontmatter.',
-                'src: {0}'.format(f.path),
+                'src: {}, frontmatter: {}'.format(f.path, frontmatter_str),
                 'layout must be set')
 
         frontmatter.pop('url', None)
