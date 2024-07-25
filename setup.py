@@ -70,7 +70,7 @@ setup(
         'PyYAML',
         'watchdog',
         'pypandoc',
-        'doit==0.34.2'
+        'doit==0.36.0'
     ],
     classifiers = [
         'Development Status :: 4 - Beta',

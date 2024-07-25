@@ -9,7 +9,7 @@ argh = "*"
 astroid = "*"
 cloudpickle = "*"
 decorator = "*"
-doit = "==0.34.2"
+doit = "==0.36.0"
 gnureadline = "*"
 gunicorn = "*"
 hoep = "*"
@@ -36,12 +36,11 @@ Pygments = "*"
 PyYAML = "*"
 
 [dev-packages]
+ruff = "*"
 ipdb = "*"
 ipython = "*"
-isort = "*"
 jedi = "*"
-pylint = "*"
-python-lsp-server = "*"
+python-language-server = "*"
 peppermynt = {editable = true, path = "."}
 
 [requires]
