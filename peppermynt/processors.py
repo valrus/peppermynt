@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 from calendar import timegm
 from collections import defaultdict
 from datetime import datetime

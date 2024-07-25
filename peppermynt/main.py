@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 import sys
 
 from peppermynt.core import Peppermynt, DoitPeppermynt
