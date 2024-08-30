@@ -40,7 +40,8 @@ ruff = "*"
 ipdb = "*"
 ipython = "*"
 jedi = "*"
-python-language-server = "*"
+python-lsp-server = {version = "*"}
+python-lsp-ruff = "*"
 peppermynt = {editable = true, path = "."}
 
 [requires]
