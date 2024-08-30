@@ -20,7 +20,7 @@ from .fs import Directory, File
 from .processors import Reader, Writer
 from .task_loader import PeppermyntTaskLoader
 from .utils import get_logger, normpath, Timer, Url
-from .cmds import Generate, Gen, Serve, Watch # , Init, Watch, Serve
+from .cmds import Generate, Gen, Serve # , Init
 
 
 logger = get_logger('peppermynt')
@@ -56,6 +56,7 @@ class Peppermynt:
         'posts_order': 'desc',
         'posts_sort': 'timestamp',
         'posts_url': '/<year>/<month>/<day>/<slug>/',
+        'preserve': [],
         'pygmentize': True,
         'renderer': 'jinja',
         'tag_layout': None,
@@ -344,7 +345,7 @@ class Peppermynt:
             if self.args.force:
                 yield {
                     'basename': f'empty {self.dest.path}',
-                    'actions': [(self.dest.empty, [])]
+                    'actions': [(self.dest.empty, [self.config['preserve']])]
                 }
             elif self.args.clean:
                 yield {
@@ -518,10 +519,10 @@ class Peppermynt:
                     if src_dir.should_ignore():
                         continue
                     yield {
-                        'basename': f'copy include directory {src_path.path}',
+                        'basename': f'copy include directory {src_dir.path}',
                         'actions': [(self.cp_include_dir_action, (src_dir, dest))],
                         'targets': [dest],
-                        'uptodate': [True],
+                        'uptodate': [False],
                     }
                 elif op.isfile(path):
                     src_file = File(path)

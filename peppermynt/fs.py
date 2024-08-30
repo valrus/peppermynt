@@ -32,7 +32,7 @@ class Directory:
     def _ignored(self, path, names):
         return [name for name in names if name.startswith(('.', '_'))]
 
-    def cp(self, dest, ignore = True):
+    def cp(self, dest, ignore=None):
         if self.exists:
             dest = Directory(dest)
             ignore = self._ignored if ignore else None
@@ -42,19 +42,19 @@ class Directory:
 
             logger.debug('..  cp: %s\n..      dest: %s', self.path, dest.path)
 
-            shutil.copytree(self.path, dest.path, ignore = ignore)
+            shutil.copytree(self.path, dest.path, ignore=ignore)
 
-    def empty(self):
+    def empty(self, preserve):
         if self.exists:
             for root, dirs, files in walk(self.path):
                 for d in dirs[:]:
-                    if not d.startswith(('.', '_')):
+                    if not d.startswith(('.', '_')) and d not in preserve:
                         Directory(abspath(root, d)).rm()
 
                     dirs.remove(d)
 
                 for f in files:
-                    if not f.startswith(('.', '_')):
+                    if not f.startswith(('.', '_')) and f not in preserve:
                         File(abspath(root, f)).rm()
 
     def mk(self):

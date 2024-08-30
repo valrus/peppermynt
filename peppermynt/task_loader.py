@@ -5,7 +5,7 @@ from tempfile import gettempdir
 import locale
 import sys
 
-from doit.cmd_base import TaskLoader
+from doit.cmd_base import TaskLoader2
 from doit.loader import generate_tasks
 from doit.reporter import ExecutedOnlyReporter, ConsoleReporter
 
@@ -35,15 +35,20 @@ def items(src, site):
             }
 
 
-class PeppermyntTaskLoader(TaskLoader):
+class PeppermyntTaskLoader(TaskLoader2):
     def __init__(self, peppermynt):
         super().__init__()
         self.peppermynt = peppermynt
 
-    def load_tasks(self, cmd, opt_values, pos_args):
-        doit_config = {
+    def load_doit_config(self):
+        return {
             'action_string_formatting': 'both',
             'reporter': ExecutedOnlyReporter,
             'outfile': sys.stdout,
         }
-        return generate_tasks('render_site', self.peppermynt.generate_tasks()), doit_config
+
+    def load_tasks(self, cmd, pos_args):
+        return generate_tasks(
+            'render_site',
+            self.peppermynt.generate_tasks()
+        )
