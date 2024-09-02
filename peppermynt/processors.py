@@ -54,7 +54,7 @@ class Reader:
 
             self._parsers[name] = Parser
 
-    def _get_date(self, mtime, date):
+    def _get_date(self, mtime, date) -> datetime:
         if not date:
             return mtime
 
@@ -95,11 +95,11 @@ class Reader:
 
         return Parser
 
-    def _parse_filename(self, f):
+    def _parse_filename(self, f) -> tuple[str, datetime]:
         date, text = re.match(r'(?:(\d{4}(?:-\d{2}-\d{2}){1,2})-)?(.+)', f.name).groups()
         return (text, self._get_date(f.mtime, date))
 
-    def _init_container(self, container):
+    def _init_container(self, container: Container) -> Container:
         for f in container.path:
             container.add(self._init_item(container.config, f))
 
@@ -109,7 +109,7 @@ class Reader:
 
         return container
 
-    def _init_item(self, config, f, simple = False):
+    def _init_item(self, config, f, simple=False) -> Item:
         Timer.start()
 
         frontmatter, bodymatter = self._parse_item_frontmatter(f)
@@ -132,7 +132,7 @@ class Reader:
 
         return item
 
-    def parse_item(self, config, item, simple = False):
+    def parse_item(self, config, item, simple=False) -> Item:
         bodymatter = item.pop('raw_content')
         parser = self._get_parser(item, item.get('parser', config.get('parser', None)))
         content = parser.parse(self._writer.from_string(bodymatter, item))

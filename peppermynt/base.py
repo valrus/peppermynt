@@ -1,7 +1,7 @@
 class Parser(object):
     accepts = ()
 
-    def __init__(self, options = None):
+    def __init__(self, options=None):
         self.options = options if options is not None else {}
 
         self.setup()
